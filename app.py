@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import numpy as np
 import torch
@@ -8,6 +9,24 @@ from funasr import AutoModel
 from pathlib import Path
 from src import voxcpm
 
+# Split text into segments at punctuation marks
+def split_text_into_segments(text, max_length=300):
+    """Helper function to split text into smaller segments at punctuation marks."""
+    # Use regular expression to find punctuation marks
+    segments = re.split(r'(?<=[。！？.!?])', text)
+    # Combine segments to ensure each is within max_length
+    combined_segments = []
+    current_segment = ''
+    for segment in segments:
+        if len(current_segment) + len(segment) > max_length:
+            combined_segments.append(current_segment)
+            current_segment = segment
+        else:
+            current_segment += segment
+    if current_segment:
+        combined_segments.append(current_segment)
+    combined_segments = list(filter(lambda x: len(x) > 0, combined_segments))
+    return combined_segments
 
 class VoxCPMDemo:
     def __init__(self) -> None:
@@ -96,16 +115,25 @@ class VoxCPMDemo:
         prompt_text = prompt_text_input if prompt_text_input else None
 
         print(f"Generating audio for text: '{text[:60]}...'", file=sys.stderr)
-        wav = current_model.generate(
-            text=text,
-            prompt_text=prompt_text,
-            prompt_wav_path=prompt_wav_path,
-            cfg_value=float(cfg_value_input),
-            inference_timesteps=int(inference_timesteps_input),
-            normalize=do_normalize,
-            denoise=denoise,
-        )
-        return (current_model.tts_model.sample_rate, wav)
+        text_segments = split_text_into_segments(text)
+        print(f"Text segments: {text_segments}")
+        # Generate speech for each segment
+        final_wav_segments = []
+        for segment in text_segments:
+            print(f"Generating speech for segment: '{segment}...'")
+            wav_segment = current_model.generate(
+                text=segment,
+                prompt_text=prompt_text,
+                prompt_wav_path=prompt_wav_path,
+                cfg_value=float(cfg_value_input),
+                inference_timesteps=int(inference_timesteps_input),
+                normalize=do_normalize,
+                denoise=denoise,
+            )
+            final_wav_segments.append(wav_segment)
+        # Concatenate all segments
+        final_wav = np.concatenate(final_wav_segments)
+        return (current_model.tts_model.sample_rate, final_wav)
 
 
 # ---------- UI Builders ----------
@@ -264,7 +292,7 @@ def run_demo(server_name: str = "localhost", server_port: int = 7860, show_error
     demo = VoxCPMDemo()
     interface = create_demo_interface(demo)
     # Recommended to enable queue on Spaces for better throughput
-    interface.queue(max_size=10, default_concurrency_limit=1).launch(server_name=server_name, server_port=server_port, show_error=show_error)
+    interface.queue(max_size=10, default_concurrency_limit=1).launch(server_name=server_name, server_port=server_port, show_error=show_error, inbrowser=True)
 
 
 if __name__ == "__main__":
