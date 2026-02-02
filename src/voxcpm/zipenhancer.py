@@ -23,9 +23,11 @@ class ZipEnhancer:
             model_path: ModelScope model path or local path
         """
         self.model_path = model_path
+        from modelscope import snapshot_download
+        snapshot_download(self.model_path, local_dir=os.path.join("models", self.model_path.split("/")[-1]))
         self._pipeline = pipeline(
                 Tasks.acoustic_noise_suppression,
-                model=self.model_path
+                model=os.path.join("models", self.model_path.split("/")[-1])
             )
         
     def _normalize_loudness(self, wav_path: str):

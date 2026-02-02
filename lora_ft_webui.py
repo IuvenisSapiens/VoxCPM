@@ -1,25 +1,21 @@
 import os
 import sys
-import time
-import glob
 import json
 import yaml
-import shutil
 import datetime
 import subprocess
 import threading
 import gradio as gr
 import torch
-import soundfile as sf
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional
 
 # Add src to sys.path
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root / "src"))
 
 # Default pretrained model path relative to this repo
-default_pretrained_path = str(project_root / "models" / "openbmb__VoxCPM1.5")
+default_pretrained_path = str(project_root / "models" / "VoxCPM1.5")
 
 from voxcpm.core import VoxCPM
 from voxcpm.model.voxcpm import LoRAConfig
