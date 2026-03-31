@@ -13,10 +13,10 @@ import soundfile as sf
 
 from voxcpm.core import VoxCPM
 
-
 # -----------------------------
 # Validators
 # -----------------------------
+
 
 def validate_file_exists(file_path: str, file_type: str = "file") -> Path:
     path = Path(file_path)
@@ -53,12 +53,11 @@ def validate_ranges(args, parser):
 # Model loading
 # -----------------------------
 
+
 def load_model(args) -> VoxCPM:
     print("Loading VoxCPM model...", file=sys.stderr)
 
-    zipenhancer_path = getattr(args, "zipenhancer_path", None) or os.environ.get(
-        "ZIPENHANCER_MODEL_PATH", None
-    )
+    zipenhancer_path = getattr(args, "zipenhancer_path", None) or os.environ.get("ZIPENHANCER_MODEL_PATH", None)
 
     # Build LoRA config if provided
     lora_config = None
@@ -119,22 +118,29 @@ def load_model(args) -> VoxCPM:
 # Commands
 # -----------------------------
 
+
 def cmd_clone(args):
     if not args.text:
         sys.exit("Error: Please provide --text for synthesis")
 
-    if not args.prompt_audio or not args.prompt_text:
-        sys.exit("Error: Voice cloning requires both --prompt-audio and --prompt-text")
+    has_prompt = args.prompt_audio and args.prompt_text
+    has_ref = args.reference_audio is not None
+    if not has_prompt and not has_ref:
+        sys.exit("Error: Voice cloning requires --prompt-audio + --prompt-text, or --reference-audio, or both")
 
-    prompt_audio_path = validate_file_exists(args.prompt_audio, "reference audio file")
+    if args.prompt_audio:
+        validate_file_exists(args.prompt_audio, "prompt audio file")
+    if args.reference_audio:
+        validate_file_exists(args.reference_audio, "reference audio file")
     output_path = validate_output_path(args.output)
 
     model = load_model(args)
 
     audio_array = model.generate(
         text=args.text,
-        prompt_wav_path=str(prompt_audio_path),
-        prompt_text=args.prompt_text,
+        prompt_wav_path=args.prompt_audio if has_prompt else None,
+        prompt_text=args.prompt_text if has_prompt else None,
+        reference_wav_path=args.reference_audio,
         cfg_value=args.cfg_value,
         inference_timesteps=args.inference_timesteps,
         normalize=args.normalize,
@@ -185,7 +191,11 @@ def cmd_batch(args):
 
     prompt_audio_path = None
     if args.prompt_audio:
-        prompt_audio_path = str(validate_file_exists(args.prompt_audio, "reference audio file"))
+        prompt_audio_path = str(validate_file_exists(args.prompt_audio, "prompt audio file"))
+
+    reference_audio_path = None
+    if args.reference_audio:
+        reference_audio_path = str(validate_file_exists(args.reference_audio, "reference audio file"))
 
     success_count = 0
 
@@ -195,10 +205,11 @@ def cmd_batch(args):
                 text=text,
                 prompt_wav_path=prompt_audio_path,
                 prompt_text=args.prompt_text,
+                reference_wav_path=reference_audio_path,
                 cfg_value=args.cfg_value,
                 inference_timesteps=args.inference_timesteps,
                 normalize=args.normalize,
-                denoise=args.denoise and prompt_audio_path is not None,
+                denoise=args.denoise and (prompt_audio_path is not None or reference_audio_path is not None),
             )
 
             output_file = output_dir / f"output_{i:03d}.wav"
@@ -218,6 +229,7 @@ def cmd_batch(args):
 # Parser
 # -----------------------------
 
+
 def _build_unified_parser():
     parser = argparse.ArgumentParser(
         description="VoxCPM CLI - voice cloning, direct TTS, and batch processing",
@@ -236,34 +248,40 @@ Examples:
     parser.add_argument("--text", "-t", help="Text to synthesize (single or clone mode)")
     parser.add_argument("--output", "-o", help="Output audio file path (single or clone mode)")
 
-    # Prompt
-    parser.add_argument("--prompt-audio", "-pa", help="Reference audio file path (clone mode)")
-    parser.add_argument("--prompt-text", "-pt", help="Reference text corresponding to the audio")
-    parser.add_argument("--denoise", action="store_true", help="Enable prompt speech enhancement")
+    # Prompt / Reference
+    parser.add_argument(
+        "--prompt-audio", "-pa", help="Prompt audio file path (continuation mode, requires --prompt-text)"
+    )
+    parser.add_argument("--prompt-text", "-pt", help="Text corresponding to the prompt audio")
+    parser.add_argument(
+        "--reference-audio", "-ra", help="Reference audio for voice cloning (isolated mode, VoxCPM2 only)"
+    )
+    parser.add_argument("--denoise", action="store_true", help="Enable prompt/reference speech enhancement")
 
     # Generation parameters
-    parser.add_argument("--cfg-value", type=float, default=2.0,
-                        help="CFG guidance scale (float, recommended 0.5–5.0, default: 2.0)")
-    parser.add_argument("--inference-timesteps", type=int, default=10,
-                        help="Inference steps (int, 1–100, default: 10)")
+    parser.add_argument(
+        "--cfg-value", type=float, default=2.0, help="CFG guidance scale (float, recommended 0.5–5.0, default: 2.0)"
+    )
+    parser.add_argument("--inference-timesteps", type=int, default=10, help="Inference steps (int, 1–100, default: 10)")
     parser.add_argument("--normalize", action="store_true", help="Enable text normalization")
 
     # Model loading
     parser.add_argument("--model-path", type=str, help="Local VoxCPM model path")
-    parser.add_argument("--hf-model-id", type=str, default="openbmb/VoxCPM1.5",
-                        help="Hugging Face repo id (default: openbmb/VoxCPM1.5)")
+    parser.add_argument(
+        "--hf-model-id", type=str, default="openbmb/VoxCPM1.5", help="Hugging Face repo id (default: openbmb/VoxCPM1.5)"
+    )
     parser.add_argument("--cache-dir", type=str, help="Cache directory for Hub downloads")
     parser.add_argument("--local-files-only", action="store_true", help="Disable network access")
     parser.add_argument("--no-denoiser", action="store_true", help="Disable denoiser model loading")
-    parser.add_argument("--zipenhancer-path", type=str,
-                        help="ZipEnhancer model id or local path (or env ZIPENHANCER_MODEL_PATH)")
+    parser.add_argument(
+        "--zipenhancer-path", type=str, help="ZipEnhancer model id or local path (or env ZIPENHANCER_MODEL_PATH)"
+    )
 
     # LoRA
     parser.add_argument("--lora-path", type=str, help="Path to LoRA weights")
     parser.add_argument("--lora-r", type=int, default=32, help="LoRA rank (positive int, default: 32)")
     parser.add_argument("--lora-alpha", type=int, default=16, help="LoRA alpha (positive int, default: 16)")
-    parser.add_argument("--lora-dropout", type=float, default=0.0,
-                        help="LoRA dropout rate (0.0–1.0, default: 0.0)")
+    parser.add_argument("--lora-dropout", type=float, default=0.0, help="LoRA dropout rate (0.0–1.0, default: 0.0)")
     parser.add_argument("--lora-disable-lm", action="store_true", help="Disable LoRA on LM layers")
     parser.add_argument("--lora-disable-dit", action="store_true", help="Disable LoRA on DiT layers")
     parser.add_argument("--lora-enable-proj", action="store_true", help="Enable LoRA on projection layers")
@@ -274,6 +292,7 @@ Examples:
 # -----------------------------
 # Entrypoint
 # -----------------------------
+
 
 def main():
     parser = _build_unified_parser()
@@ -296,8 +315,8 @@ def main():
     if not args.text or not args.output:
         parser.error("Single-sample mode requires --text and --output")
 
-    # Clone mode
-    if args.prompt_audio or args.prompt_text:
+    # Clone mode (prompt continuation, reference isolation, or both)
+    if args.prompt_audio or args.prompt_text or args.reference_audio:
         return cmd_clone(args)
 
     # Direct synthesis
