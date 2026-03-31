@@ -145,9 +145,9 @@ class MiniCPMAttention(nn.Module):
         key_states = key_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim).transpose(1, 2)
         value_states = value_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim).transpose(1, 2)
 
-        cos, sin = position_emb
-
-        query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin)
+        if position_emb is not None:
+            cos, sin = position_emb
+            query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin)
 
         # ref: https://github.com/pytorch/pytorch/issues/163597
         # there is a bug in MPS for non-contiguous tensors, so we need to make them contiguous
@@ -187,9 +187,9 @@ class MiniCPMAttention(nn.Module):
         key_states = key_states.view(bsz, 1, self.num_key_value_heads, self.head_dim).transpose(1, 2)
         value_states = value_states.view(bsz, 1, self.num_key_value_heads, self.head_dim).transpose(1, 2)
 
-        cos, sin = position_emb
-
-        query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin)
+        if position_emb is not None:
+            cos, sin = position_emb
+            query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin)
 
         key_cache, value_cache = kv_cache
 
@@ -343,7 +343,10 @@ class MiniCPMModel(nn.Module):
         )
 
         self.norm = MiniCPMRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
-        self.rope_emb = MiniCPMLongRoPE(config)
+        if config.no_rope:
+            self.rope_emb = None
+        else:
+            self.rope_emb = MiniCPMLongRoPE(config)
 
         self.kv_cache = None
 
@@ -360,8 +363,11 @@ class MiniCPMModel(nn.Module):
             hidden_states: Tensor(batch_size, seq_length, hidden_size)
             next_decoder_cache: List[(batch_size, num_heads, seq_length, head_dim), (batch_size, num_heads, seq_length, head_dim)]
         """
-        position_ids = torch.arange(0, inputs_embeds.size(1), dtype=torch.long, device=inputs_embeds.device)
-        position_emb = self.rope_emb(position_ids)
+        if self.rope_emb is not None:
+            position_ids = torch.arange(0, inputs_embeds.size(1), dtype=torch.long, device=inputs_embeds.device)
+            position_emb = self.rope_emb(position_ids)
+        else:
+            position_emb = None
         hidden_states = inputs_embeds
 
         next_decoder_cache = []
@@ -390,7 +396,10 @@ class MiniCPMModel(nn.Module):
         """
         assert self.kv_cache is not None, "KV cache is not setup"
 
-        position_emb = self.rope_emb(position_id)
+        if self.rope_emb is not None:
+            position_emb = self.rope_emb(position_id)
+        else:
+            position_emb = None
         hidden_states = inputs_embeds
 
         for i, decoder_layer in enumerate(self.layers):
