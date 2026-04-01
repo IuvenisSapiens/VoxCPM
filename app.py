@@ -1,9 +1,9 @@
 import os
 import sys
+import logging
 import numpy as np
 import torch
 import gradio as gr
-import spaces  # noqa: F401
 from typing import Optional, Tuple
 from funasr import AutoModel
 from pathlib import Path
@@ -14,130 +14,150 @@ if os.environ.get("HF_REPO_ID", "").strip() == "":
 
 import voxcpm
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
+)
+logger = logging.getLogger(__name__)
 
-class VoxCPMDemo:
-    def __init__(self) -> None:
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        print(f"🚀 Running on device: {self.device}", file=sys.stderr)
+# ---------- Inline i18n (en + zh-CN only) ----------
 
-        # ASR model for prompt text recognition
-        self.asr_model_id = "iic/SenseVoiceSmall"
-        self.asr_model: Optional[AutoModel] = AutoModel(
-            model=self.asr_model_id,
-            disable_update=True,
-            log_level="DEBUG",
-            device="cuda:0" if self.device == "cuda" else "cpu",
-        )
-
-        # TTS model (lazy init)
-        self.voxcpm_model: Optional[voxcpm.VoxCPM] = None
-        self.default_local_model_dir = "/Users/xinliu/Downloads/VoxCPM2-0.5B-newaudiovae-6hz-0316"
-
-    # ---------- Model helpers ----------
-    def _resolve_model_dir(self) -> str:
-        """
-        Resolve model directory:
-        1) Use local checkpoint directory if exists
-        2) If HF_REPO_ID env is set, download into models/{repo}
-        3) Fallback to 'models'
-        """
-        if os.path.isdir(self.default_local_model_dir):
-            return self.default_local_model_dir
-
-        repo_id = os.environ.get("HF_REPO_ID", "").strip()
-        if len(repo_id) > 0:
-            target_dir = os.path.join("models", repo_id.replace("/", "__"))
-            if not os.path.isdir(target_dir):
-                try:
-                    from huggingface_hub import snapshot_download  # type: ignore
-
-                    os.makedirs(target_dir, exist_ok=True)
-                    print(f"Downloading model from HF repo '{repo_id}' to '{target_dir}' ...", file=sys.stderr)
-                    snapshot_download(repo_id=repo_id, local_dir=target_dir, local_dir_use_symlinks=False)
-                except Exception as e:
-                    print(f"Warning: HF download failed: {e}. Falling back to 'data'.", file=sys.stderr)
-                    return "models"
-            return target_dir
-        return "models"
-
-    def get_or_load_voxcpm(self) -> voxcpm.VoxCPM:
-        if self.voxcpm_model is not None:
-            return self.voxcpm_model
-        print("Model not loaded, initializing...", file=sys.stderr)
-        model_dir = self._resolve_model_dir()
-        print(f"Using model dir: {model_dir}", file=sys.stderr)
-        self.voxcpm_model = voxcpm.VoxCPM(voxcpm_model_path=model_dir, optimize=False)
-        print("Model loaded successfully.", file=sys.stderr)
-        return self.voxcpm_model
-
-    # ---------- Functional endpoints ----------
-    def prompt_wav_recognition(self, prompt_wav: Optional[str]) -> str:
-        if prompt_wav is None:
-            return ""
-        res = self.asr_model.generate(input=prompt_wav, language="auto", use_itn=True)
-        text = res[0]["text"].split("|>")[-1]
-        return text
-
-    def generate_tts_audio(
-        self,
-        text_input: str,
-        control_instruction: str = "",
-        reference_wav_path_input: Optional[str] = None,
-        cfg_value_input: float = 2.0,
-        inference_timesteps_input: int = 10,
-        do_normalize: bool = True,
-        denoise: bool = True,
-    ) -> Tuple[int, np.ndarray]:
-        """
-        Generate speech from text using VoxCPM.
-        - If reference_wav provided: Prompt isolation mode (voice cloning)
-        - If no reference_wav: Voice design mode (use control_instruction to describe voice)
-
-        Returns (sample_rate, waveform_numpy)
-        """
-        current_model = self.get_or_load_voxcpm()
-
-        text = (text_input or "").strip()
-        if len(text) == 0:
-            raise ValueError("Please input text to synthesize.")
-
-        # 处理 control instruction
-        control = (control_instruction or "").strip()
-        if control:
-            final_text = f"({control}){text}"
-        else:
-            final_text = text
-
-        reference_wav_path = reference_wav_path_input if reference_wav_path_input else None
-
-        # 判断模式
-        if reference_wav_path:
-            print(f"[Prompt Isolation Mode] reference_wav: {reference_wav_path}", file=sys.stderr)
-        else:
-            print(f"[Voice Design Mode] control: {control[:50] if control else 'None'}...", file=sys.stderr)
-
-        print(f"Generating audio for text: '{final_text[:80]}...'", file=sys.stderr)
-        wav = current_model.generate(
-            text=final_text,
-            reference_wav_path=reference_wav_path,
-            cfg_value=float(cfg_value_input),
-            inference_timesteps=int(inference_timesteps_input),
-            normalize=do_normalize,
-            denoise=denoise,
-        )
-        return (current_model.tts_model.sample_rate, wav)
-
-
-# ---------- UI Builders ----------
-
-THEME = gr.themes.Soft(
-    primary_hue="blue",
-    secondary_hue="gray",
-    neutral_hue="slate",
-    font=[gr.themes.GoogleFont("Inter"), "Arial", "sans-serif"],
+_USAGE_INSTRUCTIONS_EN = (
+    "**Usage Instructions:**\n\n"
+    "🎨 **Voice Design** — Create a voice from scratch  \n"
+    "No reference audio needed. Simply describe the desired gender, tone, and emotion "
+    "in Control Instruction, and VoxCPM will generate a unique voice for you.\n\n"
+    "🎛️ **Controllable Voice Cloning** — Clone with style control  \n"
+    "Upload reference audio and use Control Instruction to guide speed, emotion, style, and more.\n\n"
+    "🎙️ **Hi-Fi Cloning** — Maximum voice similarity  \n"
+    "For the best cloning quality, enable and provide the reference audio transcript "
+    "to reproduce the original voice as closely as possible."
 )
 
-CSS = """
+_EXAMPLES_FOOTER_EN = (
+    "---\n"
+    "**Voice Description Examples:**  \n"
+    "You can describe it like this:  \n"
+    "【Example 1: Melancholic/Tsundere Female】  \n"
+    'Control Instruction: "A young beautiful girl with a sweet voice, '
+    'tsundere tone, slow speaking pace, and a touch of sadness."  \n'
+    'Target Text: "I never asked you to stay... It\'s not like I care or anything. '
+    'But... why does it still hurt so much now that you\'re gone?"  \n\n'
+    "【Example 2: Lazy/Casual Male】  \n"
+    'Control Instruction: "Lazy and drawling male voice, nasal, '
+    'very relaxed and casual."  \n'
+    'Target Text: "Dude, did you see that set? The waves out there are totally gnarly today, bro. '
+    "Just catching barrels all morning. It's like, totally righteous, you know what I mean?\""
+)
+
+_USAGE_INSTRUCTIONS_ZH = (
+    "**使用说明：**\n\n"
+    "🎨 **Voice Design — 声音定制**  \n"
+    "无需上传参考音频，只需在 Control Instruction 中描述你想要的性别、音色和情绪，"
+    "VoxCPM 即可凭空为你生成专属音色。\n\n"
+    "🎛️ **Controllable Voice Cloning — 可控音色克隆**  \n"
+    "支持上传参考音频，并可以给instruction文本来指导控制语速、情绪、风格等表现。\n\n"
+    "🎙️ **Hi-Fi Cloning — 高保真克隆**  \n"
+    "追求最佳克隆效果，启用并上传参考音频文本来最大程度克隆原始音色。\n\n"
+)
+
+_EXAMPLES_FOOTER_ZH = (
+    "---\n"
+    "**声音描述示例：**  \n"
+    "你可以这样输入（中英文均可）：  \n"
+    "【示例1：深宫太后】  \n"
+    '`Control Instruction`: `"中老年女性，声音低沉阴冷，语速慢而有力，'
+    '每个字都像是深思熟虑后说出，带有深不可测的城府和威胁感。"`  \n'
+    '`Target Text`: `"哀家在这深宫待了四十年，什么风浪没见过？你以为瞒得过哀家？"`  \n\n'
+    "【示例2：暴躁男声】  \n"
+    '`Control Instruction`: `"暴躁的中年男声，语速较快，充满无奈和愤怒"`  \n'
+    '`Target Text`: `"踩离合！踩刹车啊！你往哪儿开呢？前面是树你看不见吗？'
+    '我教了你八百遍了，打死方向盘！你是不是想把车给我开到沟里去？"`\n\n'
+    "💡 **方言生成特别说明：**  \n"
+    '当前版本若要生成纯正的方言，请务必在"Target Text"中直接输入方言专属的词汇和表达，'
+    "并配合方言的音色描述。  \n\n"
+    "【示例一：广东话】  \n"
+    '`Control Instruction`: `"广东话，中年男性，语气平淡"`  \n'
+    "✅ 正确的 `Target Text`（使用粤语表达）："
+    '`"伙計，唔該一個A餐，凍奶茶少甜！"`  \n'
+    "❌ 错误的 `Target Text`（使用普通话）："
+    '`"伙计，麻烦来一个A餐，冻奶茶少甜！"`  \n\n'
+    "【示例二：河南话】  \n"
+    '`Control Instruction`: `"河南话，接地气的大叔"`  \n'
+    "✅ 正确的 `Target Text`（使用河南话表达）："
+    '`"恁这是弄啥嘞？晌午吃啥饭？"`  \n'
+    "❌ 错误的 `Target Text`（使用普通话）："
+    '`"你这是在干什么呢？中午吃什么饭？"`  \n\n'
+    "🤖 **实用小技巧：不知道怎么写地道的方言？**  \n"
+    "您可以先在 豆包、DeepSeek、Kimi 等 AI 助手中输入普通话，"
+    "让它们帮你翻译成方言文本，然后再复制粘贴到 `Target Text` 中直接使用！  \n\n"
+    "📢 **研发小贴士：**  \n"
+    '我们正在努力优化 AI！后续版本将支持"输入普通话文本，一键生成方言口音"的功能，敬请期待！'
+)
+
+_I18N_TRANSLATIONS = {
+    "en": {
+        "reference_audio_label": "Reference Audio (optional — for cloning)",
+        "show_prompt_text_label": "Enable Prompt Text (improves voice similarity)",
+        "show_prompt_text_info": "Uses the ASR transcript of reference audio for higher cloning fidelity. Control Instruction will be disabled.",
+        "prompt_text_label": "Prompt Text (auto-filled by ASR, editable)",
+        "prompt_text_placeholder": "The transcript of your reference audio will appear here...",
+        "control_label": "Control Instruction (optional, only support English and Chinese)",
+        "control_placeholder": "e.g. 年轻女性，温柔甜美 / sadly / an excited young man",
+        "target_text_label": "Target Text",
+        "generate_btn": "Generate Speech",
+        "generated_audio_label": "Generated Audio",
+        "advanced_settings_title": "Advanced Settings",
+        "ref_denoise_label": "Reference audio enhancement",
+        "ref_denoise_info": "Denoise reference audio with ZipEnhancer",
+        "normalize_label": "Text normalization",
+        "normalize_info": "Normalize input text with wetext",
+        "cfg_label": "CFG (guidance scale)",
+        "cfg_info": "Higher = stronger prompt adherence; lower = more variation",
+        "usage_instructions": _USAGE_INSTRUCTIONS_EN,
+        "examples_footer": _EXAMPLES_FOOTER_EN,
+    },
+    "zh-CN": {
+        "reference_audio_label": "参考音频（可选 - 用于克隆）",
+        "show_prompt_text_label": "启用 Prompt Text（提升音色还原度）",
+        "show_prompt_text_info": "使用参考音频的文本内容提升克隆相似度，开启后 Control Instruction 将被禁用",
+        "prompt_text_label": "Prompt Text（ASR 自动填充，可编辑）",
+        "prompt_text_placeholder": "参考音频的文本内容将自动识别到这里...",
+        "control_label": "Control Instruction（可选，仅支持中文和英文）",
+        "control_placeholder": "如：年轻女性，温柔甜美 / sadly / an excited young man",
+        "target_text_label": "Target Text（要合成的文本）",
+        "generate_btn": "开始生成",
+        "generated_audio_label": "生成音频",
+        "advanced_settings_title": "高级设置",
+        "ref_denoise_label": "参考音频降噪增强",
+        "ref_denoise_info": "使用 ZipEnhancer 对参考音频进行降噪",
+        "normalize_label": "文本规范化",
+        "normalize_info": "使用 wetext 对输入文本进行规范化处理",
+        "cfg_label": "CFG Value（引导强度）",
+        "cfg_info": "数值越高，越贴合提示要求；数值越低，变化空间越大",
+        "usage_instructions": _USAGE_INSTRUCTIONS_ZH,
+        "examples_footer": _EXAMPLES_FOOTER_ZH,
+    },
+    "zh-Hans": None,  # alias, filled below
+    "zh": None,       # alias, filled below
+}
+_I18N_TRANSLATIONS["zh-Hans"] = _I18N_TRANSLATIONS["zh-CN"]
+_I18N_TRANSLATIONS["zh"] = _I18N_TRANSLATIONS["zh-CN"]
+
+for _d in _I18N_TRANSLATIONS.values():
+    if _d is not None:
+        for _k, _v in _I18N_TRANSLATIONS["en"].items():
+            _d.setdefault(_k, _v)
+
+I18N = gr.I18n(**_I18N_TRANSLATIONS)
+
+DEFAULT_TARGET_TEXT = (
+    "VoxCPM is an innovative end-to-end TTS model from ModelBest, "
+    "designed to generate highly realistic speech."
+)
+
+_CUSTOM_CSS = """
 .logo-container {
     text-align: center;
     margin: 0.5rem 0 1rem 0;
@@ -148,165 +168,314 @@ CSS = """
     max-width: 200px;
     display: inline-block;
 }
-/* Bold accordion labels */
-#acc_quick > .label-wrap,
-#acc_tips > .label-wrap,
-#acc_quick > .label-wrap > span,
-#acc_tips > .label-wrap > span,
-#acc_quick summary,
-#acc_tips summary {
-    font-weight: 600 !important;
-    font-size: 1.1em !important;
+
+/* Toggle switch style */
+.switch-toggle {
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: var(--block-background-fill);
 }
-/* Bold labels for specific checkboxes */
-#chk_denoise label,
-#chk_denoise span,
-#chk_normalize label,
-#chk_normalize span {
-    font-weight: 600;
+.switch-toggle input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 44px;
+    height: 24px;
+    background: #ccc;
+    border-radius: 12px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.3s ease;
+    flex-shrink: 0;
+}
+.switch-toggle input[type="checkbox"]::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.3s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+.switch-toggle input[type="checkbox"]:checked {
+    background: var(--color-accent);
+}
+.switch-toggle input[type="checkbox"]:checked::after {
+    transform: translateX(20px);
 }
 """
 
+_APP_THEME = gr.themes.Soft(
+    primary_hue="blue",
+    secondary_hue="gray",
+    neutral_hue="slate",
+    font=[gr.themes.GoogleFont("Inter"), "Arial", "sans-serif"],
+)
+
+
+# ---------- Model ----------
+
+class VoxCPMDemo:
+    def __init__(self, model_dir: Optional[str] = None) -> None:
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        logger.info(f"Running on device: {self.device}")
+
+        self.asr_model_id = "iic/SenseVoiceSmall"
+        self.asr_model: Optional[AutoModel] = AutoModel(
+            model=self.asr_model_id,
+            disable_update=True,
+            log_level="DEBUG",
+            device="cuda:0" if self.device == "cuda" else "cpu",
+        )
+
+        self.voxcpm_model: Optional[voxcpm.VoxCPM] = None
+        self.explicit_model_dir = model_dir
+
+    def _resolve_model_dir(self) -> str:
+        if self.explicit_model_dir and os.path.isdir(self.explicit_model_dir):
+            return self.explicit_model_dir
+        env_model_dir = os.environ.get("VOXCPM_MODEL_DIR", "").strip()
+        if env_model_dir and os.path.isdir(env_model_dir):
+            return env_model_dir
+        repo_id = os.environ.get("HF_REPO_ID", "").strip()
+        if len(repo_id) > 0:
+            target_dir = os.path.join("models", repo_id.replace("/", "__"))
+            if not os.path.isdir(target_dir):
+                try:
+                    from huggingface_hub import snapshot_download
+                    os.makedirs(target_dir, exist_ok=True)
+                    logger.info(f"Downloading model from HF repo '{repo_id}' to '{target_dir}' ...")
+                    snapshot_download(repo_id=repo_id, local_dir=target_dir, local_dir_use_symlinks=False)
+                except Exception as e:
+                    logger.warning(f"HF download failed: {e}. Falling back to 'models'.")
+                    return "models"
+            return target_dir
+        return "models"
+
+    def get_or_load_voxcpm(self) -> voxcpm.VoxCPM:
+        if self.voxcpm_model is not None:
+            return self.voxcpm_model
+        logger.info("Model not loaded, initializing...")
+        model_dir = self._resolve_model_dir()
+        logger.info(f"Using model dir: {model_dir}")
+        self.voxcpm_model = voxcpm.VoxCPM(voxcpm_model_path=model_dir, optimize=True)
+        logger.info("Model loaded successfully.")
+        return self.voxcpm_model
+
+    def prompt_wav_recognition(self, prompt_wav: Optional[str]) -> str:
+        if prompt_wav is None:
+            return ""
+        res = self.asr_model.generate(input=prompt_wav, language="auto", use_itn=True)
+        return res[0]["text"].split("|>")[-1]
+
+    def _build_generate_kwargs(
+        self,
+        *,
+        final_text: str,
+        audio_path: Optional[str],
+        prompt_text_clean: Optional[str],
+        cfg_value_input: float,
+        do_normalize: bool,
+        denoise: bool,
+    ) -> dict:
+        generate_kwargs = dict(
+            text=final_text,
+            reference_wav_path=audio_path,
+            cfg_value=float(cfg_value_input),
+            inference_timesteps=10,
+            normalize=do_normalize,
+            denoise=denoise,
+        )
+        if prompt_text_clean and audio_path:
+            generate_kwargs["prompt_wav_path"] = audio_path
+            generate_kwargs["prompt_text"] = prompt_text_clean
+        return generate_kwargs
+
+    def generate_tts_audio(
+        self,
+        text_input: str,
+        control_instruction: str = "",
+        reference_wav_path_input: Optional[str] = None,
+        prompt_text: str = "",
+        cfg_value_input: float = 2.0,
+        do_normalize: bool = True,
+        denoise: bool = True,
+    ) -> Tuple[int, np.ndarray]:
+        current_model = self.get_or_load_voxcpm()
+
+        text = (text_input or "").strip()
+        if len(text) == 0:
+            raise ValueError("Please input text to synthesize.")
+
+        control = (control_instruction or "").strip()
+        final_text = f"({control}){text}" if control else text
+
+        audio_path = reference_wav_path_input if reference_wav_path_input else None
+        prompt_text_clean = (prompt_text or "").strip() or None
+
+        if audio_path and prompt_text_clean:
+            logger.info(f"[Voice Cloning] prompt_wav + prompt_text + reference_wav")
+        elif audio_path:
+            logger.info(f"[Voice Control] reference_wav only")
+        else:
+            logger.info(f"[Voice Design] control: {control[:50] if control else 'None'}...")
+
+        logger.info(f"Generating audio for text: '{final_text[:80]}...'")
+        generate_kwargs = self._build_generate_kwargs(
+            final_text=final_text,
+            audio_path=audio_path,
+            prompt_text_clean=prompt_text_clean,
+            cfg_value_input=cfg_value_input,
+            do_normalize=do_normalize,
+            denoise=denoise,
+        )
+        wav = current_model.generate(**generate_kwargs)
+        return (current_model.tts_model.sample_rate, wav)
+
+
+# ---------- UI ----------
 
 def create_demo_interface(demo: VoxCPMDemo):
-    """Build the Gradio UI for VoxCPM demo."""
     gr.set_static_paths(paths=[Path.cwd().absolute() / "assets"])
+
+    def _generate(
+        text: str,
+        control_instruction: str,
+        ref_wav: Optional[str],
+        use_prompt_text: bool,
+        prompt_text_value: str,
+        cfg_value: float,
+        do_normalize: bool,
+        denoise: bool,
+    ):
+        actual_prompt_text = prompt_text_value.strip() if use_prompt_text else ""
+        actual_control = "" if use_prompt_text else control_instruction
+        sr, wav_np = demo.generate_tts_audio(
+            text_input=text,
+            control_instruction=actual_control,
+            reference_wav_path_input=ref_wav,
+            prompt_text=actual_prompt_text,
+            cfg_value_input=cfg_value,
+            do_normalize=do_normalize,
+            denoise=denoise,
+        )
+        return (sr, wav_np)
+
+    def _on_toggle_instant(checked):
+        """Instant UI toggle — no ASR, no blocking."""
+        if checked:
+            return (
+                gr.update(visible=True, value="", placeholder="Recognizing reference audio..."),
+                gr.update(visible=False),
+            )
+        return (
+            gr.update(visible=False),
+            gr.update(visible=True, interactive=True),
+        )
+
+    def _run_asr_if_needed(checked, audio_path):
+        """Run ASR after the UI has updated. Only when toggled ON."""
+        if not checked or not audio_path:
+            return gr.update()
+        try:
+            logger.info("Running ASR on reference audio...")
+            asr_text = demo.prompt_wav_recognition(audio_path)
+            logger.info(f"ASR result: {asr_text[:60]}...")
+            return gr.update(value=asr_text)
+        except Exception as e:
+            logger.warning(f"ASR recognition failed: {e}")
+            return gr.update(value="")
 
     with gr.Blocks() as interface:
         gr.HTML(
-            '<div class="logo-container"><img src="/gradio_api/file=assets/voxcpm_logo.png" alt="VoxCPM Logo"></div>',
-            padding=True,
+            '<div class="logo-container">'
+            '<img src="/gradio_api/file=assets/voxcpm_logo.png" alt="VoxCPM Logo">'
+            "</div>"
         )
 
-        # Quick Start
-        with gr.Accordion("📋 Quick Start Guide ｜快速入门", open=False, elem_id="acc_quick"):
-            gr.Markdown("""
-            ### How to Use ｜使用说明
-            1. **(Optional) Provide a Voice Prompt** - Upload or record an audio clip to provide the desired voice characteristics for synthesis.  
-               **（可选）提供参考声音** - 上传或录制一段音频，为声音合成提供音色、语调和情感等个性化特征
-            2. **(Optional) Enter prompt text** - If you provided a voice prompt, enter the corresponding transcript here (auto-recognition available).  
-               **（可选项）输入参考文本** - 如果提供了参考语音，请输入其对应的文本内容（支持自动识别）。
-            3. **Enter target text** - Type the text you want the model to speak.  
-               **输入目标文本** - 输入您希望模型朗读的文字内容。
-            4. **Generate Speech** - Click the "Generate" button to create your audio.  
-               **生成语音** - 点击"生成"按钮，即可为您创造出音频。
-            """)
+        gr.Markdown(I18N("usage_instructions"))
 
-        # Pro Tips
-        with gr.Accordion("💡 Pro Tips ｜使用建议", open=False, elem_id="acc_tips"):
-            gr.Markdown("""
-            ### Prompt Speech Enhancement｜参考语音降噪
-            - **Enable** to remove background noise for a clean voice, with an external ZipEnhancer component. However, this will limit the audio sampling rate to 16kHz, restricting the cloning quality ceiling.  
-              **启用**：通过 ZipEnhancer 组件消除背景噪音，但会将音频采样率限制在16kHz，限制克隆上限。
-            - **Disable** to preserve the original audio's all information, including background atmosphere, and support audio cloning up to 44.1kHz sampling rate.  
-              **禁用**：保留原始音频的全部信息，包括背景环境声，最高支持44.1kHz的音频复刻。
-
-            ### Text Normalization｜文本正则化
-            - **Enable** to process general text with an external WeTextProcessing component.  
-              **启用**：使用 WeTextProcessing 组件，可支持常见文本的正则化处理。
-            - **Disable** to use VoxCPM's native text understanding ability. For example, it supports phonemes input (For Chinese, phonemes are converted using pinyin, {ni3}{hao3}; For English, phonemes are converted using CMUDict, {HH AH0 L OW1}), try it!  
-              **禁用**：将使用 VoxCPM 内置的文本理解能力。如，支持音素输入（如中文转拼音：{ni3}{hao3}；英文转CMUDict：{HH AH0 L OW1}）和公式符号合成，尝试一下！
-
-            ### CFG Value｜CFG 值
-            - **Lower CFG** if the voice prompt sounds strained or expressive, or instability occurs with long text input.  
-              **调低**：如果提示语音听起来不自然或过于夸张，或者长文本输入出现稳定性问题。
-            - **Higher CFG** for better adherence to the prompt speech style or input text, or instability occurs with too short text input.
-              **调高**：为更好地贴合提示音频的风格或输入文本， 或者极短文本输入出现稳定性问题。
-
-            ### Inference Timesteps｜推理时间步
-            - **Lower** for faster synthesis speed.  
-              **调低**：合成速度更快。
-            - **Higher** for better synthesis quality.  
-              **调高**：合成质量更佳。
-            """)
-
-        # Main controls
         with gr.Row():
             with gr.Column():
-                # 1. Reference Audio
-                # gr.Markdown("### 🎤 Reference Audio (Optional)")
-                # gr.Markdown("*提供参考音频进行音色克隆；不提供则使用 Voice Design 模式*")
                 reference_wav = gr.Audio(
                     sources=["upload", "microphone"],
                     type="filepath",
-                    label="Reference Audio (Optional)",
+                    label=I18N("reference_audio_label"),
                 )
-                DoDenoisePromptAudio = gr.Checkbox(
+                show_prompt_text = gr.Checkbox(
                     value=False,
-                    label="Reference Audio Enhancement",
-                    elem_id="chk_denoise",
-                    info="Use ZipEnhancer to denoise the reference audio",
+                    label=I18N("show_prompt_text_label"),
+                    info=I18N("show_prompt_text_info"),
+                    elem_classes=["switch-toggle"],
                 )
-
-                # 2. Control Instruction
-                # gr.Markdown("### 🎛️ Control Instruction (Optional)")
-                # gr.Markdown("*描述声音风格、情感等，格式：`(instruction) text`*")
+                prompt_text = gr.Textbox(
+                    value="",
+                    label=I18N("prompt_text_label"),
+                    placeholder=I18N("prompt_text_placeholder"),
+                    lines=2,
+                    visible=False,
+                )
                 control_instruction = gr.Textbox(
                     value="",
-                    label="Control Instruction",
-                    placeholder="*描述声音风格、情感等，格式：`(instruction) text`，例如：年轻女性，温柔甜美 / 悲伤地说 / an excited young man*",
+                    label=I18N("control_label"),
+                    placeholder=I18N("control_placeholder"),
                     lines=2,
                 )
-
-                # 3. Target Text
-                # gr.Markdown("### 📝 Target Text")
                 text = gr.Textbox(
-                    value="VoxCPM is an innovative end-to-end TTS model from ModelBest, designed to generate highly realistic speech.",
-                    label="Target Text",
+                    value=DEFAULT_TARGET_TEXT,
+                    label=I18N("target_text_label"),
                     lines=3,
                 )
-                DoNormalizeText = gr.Checkbox(
-                    value=False,
-                    label="Text Normalization",
-                    elem_id="chk_normalize",
-                    info="Use wetext library to normalize the input text",
-                )
 
-                run_btn = gr.Button("🔊 Generate Speech", variant="primary", size="lg")
+                with gr.Accordion(I18N("advanced_settings_title"), open=False):
+                    DoDenoisePromptAudio = gr.Checkbox(
+                        value=False,
+                        label=I18N("ref_denoise_label"),
+                        elem_classes=["switch-toggle"],
+                        info=I18N("ref_denoise_info"),
+                    )
+                    DoNormalizeText = gr.Checkbox(
+                        value=False,
+                        label=I18N("normalize_label"),
+                        elem_classes=["switch-toggle"],
+                        info=I18N("normalize_info"),
+                    )
+                    cfg_value = gr.Slider(
+                        minimum=1.0,
+                        maximum=3.0,
+                        value=2.0,
+                        step=0.1,
+                        label=I18N("cfg_label"),
+                        info=I18N("cfg_info"),
+                    )
+
+                run_btn = gr.Button(I18N("generate_btn"), variant="primary", size="lg")
 
             with gr.Column():
-                gr.Markdown("### ⚙️ Generation Settings")
-                cfg_value = gr.Slider(
-                    minimum=1.0,
-                    maximum=3.0,
-                    value=2.0,
-                    step=0.1,
-                    label="CFG Value (Guidance Scale)",
-                    info="Higher = more adherence to prompt; Lower = more creativity",
-                )
-                inference_timesteps = gr.Slider(
-                    minimum=4,
-                    maximum=30,
-                    value=10,
-                    step=1,
-                    label="Inference Timesteps",
-                    info="Higher = better quality but slower",
-                )
+                audio_output = gr.Audio(label=I18N("generated_audio_label"))
+                gr.Markdown(I18N("examples_footer"))
 
-                gr.Markdown("### 🔈 Output")
-                audio_output = gr.Audio(label="Generated Audio")
+        show_prompt_text.change(
+            fn=_on_toggle_instant,
+            inputs=[show_prompt_text],
+            outputs=[prompt_text, control_instruction],
+        ).then(
+            fn=_run_asr_if_needed,
+            inputs=[show_prompt_text, reference_wav],
+            outputs=[prompt_text],
+        )
 
-                gr.Markdown("""
-                ---
-                **模式说明 / Mode Info:**
-                - **有 Reference Audio** → Prompt 隔离模式（音色克隆）
-                - **无 Reference Audio** → Voice Design 模式（用 Control Instruction 描述声音）
-                
-                **Control Instruction 示例：**
-                - `年轻女性，温柔甜美`
-                - `悲伤地说`
-                - `an excited young man`
-                """)
-
-        # Wiring
         run_btn.click(
-            fn=demo.generate_tts_audio,
+            fn=_generate,
             inputs=[
                 text,
                 control_instruction,
                 reference_wav,
+                show_prompt_text,
+                prompt_text,
                 cfg_value,
-                inference_timesteps,
                 DoNormalizeText,
                 DoDenoisePromptAudio,
             ],
@@ -317,18 +486,28 @@ def create_demo_interface(demo: VoxCPMDemo):
 
     return interface
 
-
-def run_demo(server_name: str = "0.0.0.0", server_port: int = 7869, show_error: bool = True):
-    demo = VoxCPMDemo()
+def run_demo(
+    server_name: str = "0.0.0.0",
+    server_port: int = 8808,
+    show_error: bool = True,
+    model_dir: Optional[str] = None,
+):
+    demo = VoxCPMDemo(model_dir=model_dir)
     interface = create_demo_interface(demo)
     interface.queue(max_size=10, default_concurrency_limit=1).launch(
         server_name=server_name,
         server_port=server_port,
         show_error=show_error,
-        theme=THEME,
-        css=CSS,
+        i18n=I18N,
+        theme=_APP_THEME,
+        css=_CUSTOM_CSS,
     )
 
 
 if __name__ == "__main__":
-    run_demo()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--model-dir", type=str, default=None, help="Path to VoxCPM2 checkpoint directory")
+    parser.add_argument("--port", type=int, default=8808, help="Server port")
+    args = parser.parse_args()
+    run_demo(model_dir=args.model_dir, server_port=args.port)

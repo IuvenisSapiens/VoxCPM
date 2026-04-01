@@ -126,47 +126,72 @@ print("saved: output_streaming.wav")
 After installation, the entry point is `voxcpm` (or use `python -m voxcpm.cli`).
 
 ```bash
-# 1) Direct synthesis (single text)
-voxcpm --text "VoxCPM is an innovative end-to-end TTS model from ModelBest, designed to generate highly expressive speech." --output out.wav
+# 1) Voice design (VoxCPM2-first)
+voxcpm design \
+  --text "VoxCPM is an innovative end-to-end TTS model from ModelBest, designed to generate highly expressive speech." \
+  --output out.wav
 
-# 2) Voice cloning (reference audio + transcript)
-voxcpm --text "VoxCPM is an innovative end-to-end TTS model from ModelBest, designed to generate highly expressive speech." \
+# 2) Voice design with control instruction
+voxcpm design \
+  --text "VoxCPM is an innovative end-to-end TTS model from ModelBest, designed to generate highly expressive speech." \
+  --control "Young female voice, warm and gentle, slightly smiling" \
+  --output out.wav
+
+# 3) Voice cloning (reference audio only, VoxCPM2)
+voxcpm clone \
+  --text "VoxCPM is an innovative end-to-end TTS model from ModelBest, designed to generate highly expressive speech." \
+  --reference-audio path/to/voice.wav \
+  --output out.wav
+
+# 4) Hi-Fi / advanced cloning (prompt audio + transcript)
+voxcpm clone \
+  --text "VoxCPM is an innovative end-to-end TTS model from ModelBest, designed to generate highly expressive speech." \
   --prompt-audio path/to/voice.wav \
   --prompt-text "reference transcript" \
-  --output out.wav \
-  # --denoise
+  --output out.wav
 
-# (Optinal) Voice cloning (reference audio + transcript file)
-voxcpm --text "VoxCPM is an innovative end-to-end TTS model from ModelBest, designed to generate highly expressive speech." \
+# 5) Prompt transcript from file
+voxcpm clone \
+  --text "VoxCPM is an innovative end-to-end TTS model from ModelBest, designed to generate highly expressive speech." \
   --prompt-audio path/to/voice.wav \
   --prompt-file "/path/to/text-file" \
-  --output out.wav \
-  # --denoise
+  --output out.wav
 
-# 3) Batch processing (one text per line)
-voxcpm --input examples/input.txt --output-dir outs
-# (optional) Batch + cloning
-voxcpm --input examples/input.txt --output-dir outs \
+# 6) Advanced cloning: prompt + reference together
+voxcpm clone \
+  --text "VoxCPM is an innovative end-to-end TTS model from ModelBest, designed to generate highly expressive speech." \
   --prompt-audio path/to/voice.wav \
   --prompt-text "reference transcript" \
-  # --denoise
+  --reference-audio path/to/voice.wav \
+  --output out.wav \
+  --denoise
 
-# 4) Inference parameters (quality/speed)
-voxcpm --text "..." --output out.wav \
+# 7) Batch processing (one text per line)
+voxcpm batch --input examples/input.txt --output-dir outs
+
+# 8) Batch + cloning
+voxcpm batch --input examples/input.txt --output-dir outs \
+  --reference-audio path/to/voice.wav
+
+# 9) Inference parameters (quality/speed)
+voxcpm design --text "..." --output out.wav \
   --cfg-value 2.0 --inference-timesteps 10 --normalize
 
-# 5) Model loading
+# 10) Model loading
 # Prefer local path
-voxcpm --text "..." --output out.wav --model-path /path/to/VoxCPM_model_dir
+voxcpm design --text "..." --output out.wav --model-path /path/to/VoxCPM_model_dir
 # Or from Hugging Face (auto download/cache)
-voxcpm --text "..." --output out.wav \
-  --hf-model-id openbmb/VoxCPM1.5 --cache-dir ~/.cache/huggingface --local-files-only
+voxcpm design --text "..." --output out.wav \
+  --hf-model-id openbmb/VoxCPM2 --cache-dir ~/.cache/huggingface --local-files-only
 
-# 6) Denoiser control
-voxcpm --text "..." --output out.wav \
+# 11) Denoiser control
+voxcpm clone --text "..." --output out.wav --reference-audio path/to/voice.wav \
   --no-denoiser --zipenhancer-path iic/speech_zipenhancer_ans_multiloss_16k_base
 
-# 7) Help
+# 12) Legacy root arguments still work but are deprecated
+voxcpm --text "..." --output out.wav
+
+# 13) Help
 voxcpm --help
 python -m voxcpm.cli --help
 ```
