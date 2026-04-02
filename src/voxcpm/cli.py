@@ -46,10 +46,10 @@ def validate_output_path(output_path: str) -> Path:
 def validate_ranges(args, parser):
     """Validate numeric argument ranges."""
     if not (0.1 <= args.cfg_value <= 10.0):
-        parser.error("--cfg-value must be between 0.1 and 10.0")
+        parser.error("--cfg-value must be between 0.1 and 10.0 (recommended: 1.0–3.0)")
 
     if not (1 <= args.inference_timesteps <= 100):
-        parser.error("--inference-timesteps must be between 1 and 100")
+        parser.error("--inference-timesteps must be between 1 and 100 (recommended: 4–30)")
 
     if args.lora_r <= 0:
         parser.error("--lora-r must be a positive integer")
@@ -358,13 +358,13 @@ def _add_common_generation_args(parser):
         "--cfg-value",
         type=float,
         default=2.0,
-        help="CFG guidance scale (float, recommended 0.5–5.0, default: 2.0)",
+        help="CFG guidance scale (float, recommended 1.0–3.0, default: 2.0)",
     )
     parser.add_argument(
         "--inference-timesteps",
         type=int,
         default=10,
-        help="Inference steps (int, 1–100, default: 10)",
+        help="Inference steps (int, recommended 4–30, default: 10)",
     )
     parser.add_argument(
         "--normalize", action="store_true", help="Enable text normalization"
@@ -510,13 +510,13 @@ Examples:
         "--cfg-value",
         type=float,
         default=2.0,
-        help="CFG guidance scale (float, recommended 0.5–5.0, default: 2.0)",
+        help="CFG guidance scale (float, recommended 1.0–3.0, default: 2.0)",
     )
     batch_parser.add_argument(
         "--inference-timesteps",
         type=int,
         default=10,
-        help="Inference steps (int, 1–100, default: 10)",
+        help="Inference steps (int, recommended 4–30, default: 10)",
     )
     batch_parser.add_argument(
         "--normalize", action="store_true", help="Enable text normalization"

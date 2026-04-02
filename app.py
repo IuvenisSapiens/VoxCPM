@@ -59,7 +59,7 @@ _USAGE_INSTRUCTIONS_ZH = (
     "🎛️ **Controllable Voice Cloning — 可控音色克隆**  \n"
     "支持上传参考音频，并可以给instruction文本来指导控制语速、情绪、风格等表现。\n\n"
     "🎙️ **Hi-Fi Cloning — 高保真克隆**  \n"
-    "追求最佳克隆效果，启用并上传参考音频文本来最大程度克隆原始音色。\n\n"
+    "启用并上传参考音频文本，同时开启参考音频 + 音频续写，保留最佳一致性体验。\n\n"
 )
 
 _EXAMPLES_FOOTER_ZH = (
