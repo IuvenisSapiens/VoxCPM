@@ -24,118 +24,121 @@ logger = logging.getLogger(__name__)
 # ---------- Inline i18n (en + zh-CN only) ----------
 
 _USAGE_INSTRUCTIONS_EN = (
-    "**Usage Instructions:**\n\n"
-    "🎨 **Voice Design** — Create a voice from scratch  \n"
-    "No reference audio needed. Simply describe the desired gender, tone, and emotion "
-    "in Control Instruction, and VoxCPM will generate a unique voice for you.\n\n"
-    "🎛️ **Controllable Voice Cloning** — Clone with style control  \n"
-    "Upload reference audio and use Control Instruction to guide speed, emotion, style, and more.\n\n"
-    "🎙️ **Hi-Fi Cloning** — Maximum voice similarity  \n"
-    "For the best cloning quality, enable and provide the reference audio transcript "
-    "to reproduce the original voice as closely as possible."
+    "**VoxCPM2 — Three Modes of Speech Generation:**\n\n"
+    "🎨 **Voice Design** — Create a brand-new voice  \n"
+    "No reference audio required. Describe the desired voice characteristics "
+    "(gender, age, tone, emotion, pace …) in **Control Instruction**, and VoxCPM2 "
+    "will craft a unique voice from your description alone.\n\n"
+    "🎛️ **Controllable Cloning** — Clone a voice with optional style guidance  \n"
+    "Upload a reference audio clip, then use **Control Instruction** to steer "
+    "emotion, speaking pace, and overall style while preserving the original timbre.\n\n"
+    "🎙️ **Ultimate Cloning** — Reproduce every vocal nuance through audio continuation  \n"
+    "Turn on **Ultimate Cloning Mode** and provide (or auto-transcribe) the reference audio's transcript. "
+    "The model treats the reference clip as a spoken prefix and seamlessly **continues** from it, faithfully preserving every vocal detail."
+    "Note: This mode will disable Control Instruction."
 )
 
 _EXAMPLES_FOOTER_EN = (
     "---\n"
-    "**Voice Description Examples:**  \n"
-    "You can describe it like this:  \n"
-    "【Example 1: Melancholic/Tsundere Female】  \n"
-    'Control Instruction: "A young beautiful girl with a sweet voice, '
-    'tsundere tone, slow speaking pace, and a touch of sadness."  \n'
-    'Target Text: "I never asked you to stay... It\'s not like I care or anything. '
-    'But... why does it still hurt so much now that you\'re gone?"  \n\n'
-    "【Example 2: Lazy/Casual Male】  \n"
-    'Control Instruction: "Lazy and drawling male voice, nasal, '
-    'very relaxed and casual."  \n'
-    'Target Text: "Dude, did you see that set? The waves out there are totally gnarly today, bro. '
-    "Just catching barrels all morning. It's like, totally righteous, you know what I mean?\""
+    "**💡 Voice Description Examples:**  \n"
+    "Try the following Control Instructions to explore different voices:  \n\n"
+    "**Example 1 — Gentle & Melancholic Girl**  \n"
+    '`Control Instruction`: *"A young girl with a soft, sweet voice. '
+    'Speaks slowly with a melancholic, slightly tsundere tone."*  \n'
+    '`Target Text`: *"I never asked you to stay… It\'s not like I care or anything. '
+    'But… why does it still hurt so much now that you\'re gone?"*  \n\n'
+    "**Example 2 — Laid-Back Surfer Dude**  \n"
+    '`Control Instruction`: *"Relaxed young male voice, slightly nasal, '
+    'lazy drawl, very casual and chill."*  \n'
+    '`Target Text`: *"Dude, did you see that set? The waves out there are totally gnarly today. '
+    "Just catching barrels all morning — it's like, totally righteous, you know what I mean?\"*"
 )
 
 _USAGE_INSTRUCTIONS_ZH = (
-    "**使用说明：**\n\n"
-    "🎨 **Voice Design — 声音定制**  \n"
-    "无需上传参考音频，只需在 Control Instruction 中描述你想要的性别、音色和情绪，"
-    "VoxCPM 即可凭空为你生成专属音色。\n\n"
-    "🎛️ **Controllable Voice Cloning — 可控音色克隆**  \n"
-    "支持上传参考音频，并可以给instruction文本来指导控制语速、情绪、风格等表现。\n\n"
-    "🎙️ **Hi-Fi Cloning — 高保真克隆**  \n"
-    "启用并上传参考音频文本，同时开启参考音频 + 音频续写，保留最佳一致性体验。\n\n"
+    "**VoxCPM2 — 三种语音生成方式：**\n\n"
+    "🎨 **声音设计（Voice Design）**  \n"
+    "无需参考音频。在 **Control Instruction** 中描述目标音色特征"
+    "（性别、年龄、语气、情绪、语速等），VoxCPM2 即可为你从零创造独一无二的声音。\n\n"
+    "🎛️ **可控克隆（Controllable Cloning）**  \n"
+    "上传参考音频，同时可选地使用 **Control Instruction** 来指定情绪、语速、风格等表达方式，"
+    "在保留原始音色的基础上灵活控制说话风格。\n\n"
+    "🎙️ **极致克隆（Ultimate Cloning）**  \n"
+    "开启 **极致克隆模式** 并提供参考音频的文字内容（可自动识别）。"
+    "模型会将参考音频视为已说出的前文，以**音频续写**的方式完整还原参考音频中的所有声音细节。"
+    "注意：该模式与可控克隆模式互斥，将禁用Control Instruction。\n\n"
 )
 
 _EXAMPLES_FOOTER_ZH = (
     "---\n"
-    "**声音描述示例：**  \n"
-    "你可以这样输入（中英文均可）：  \n"
-    "【示例1：深宫太后】  \n"
-    '`Control Instruction`: `"中老年女性，声音低沉阴冷，语速慢而有力，'
-    '每个字都像是深思熟虑后说出，带有深不可测的城府和威胁感。"`  \n'
-    '`Target Text`: `"哀家在这深宫待了四十年，什么风浪没见过？你以为瞒得过哀家？"`  \n\n'
-    "【示例2：暴躁男声】  \n"
-    '`Control Instruction`: `"暴躁的中年男声，语速较快，充满无奈和愤怒"`  \n'
-    '`Target Text`: `"踩离合！踩刹车啊！你往哪儿开呢？前面是树你看不见吗？'
-    '我教了你八百遍了，打死方向盘！你是不是想把车给我开到沟里去？"`\n\n'
-    "💡 **方言生成特别说明：**  \n"
-    '当前版本若要生成纯正的方言，请务必在"Target Text"中直接输入方言专属的词汇和表达，'
-    "并配合方言的音色描述。  \n\n"
-    "【示例一：广东话】  \n"
-    '`Control Instruction`: `"广东话，中年男性，语气平淡"`  \n'
-    "✅ 正确的 `Target Text`（使用粤语表达）："
-    '`"伙計，唔該一個A餐，凍奶茶少甜！"`  \n'
-    "❌ 错误的 `Target Text`（使用普通话）："
-    '`"伙计，麻烦来一个A餐，冻奶茶少甜！"`  \n\n'
-    "【示例二：河南话】  \n"
-    '`Control Instruction`: `"河南话，接地气的大叔"`  \n'
-    "✅ 正确的 `Target Text`（使用河南话表达）："
-    '`"恁这是弄啥嘞？晌午吃啥饭？"`  \n'
-    "❌ 错误的 `Target Text`（使用普通话）："
-    '`"你这是在干什么呢？中午吃什么饭？"`  \n\n'
-    "🤖 **实用小技巧：不知道怎么写地道的方言？**  \n"
-    "您可以先在 豆包、DeepSeek、Kimi 等 AI 助手中输入普通话，"
-    "让它们帮你翻译成方言文本，然后再复制粘贴到 `Target Text` 中直接使用！  \n\n"
-    "📢 **研发小贴士：**  \n"
-    '我们正在努力优化 AI！后续版本将支持"输入普通话文本，一键生成方言口音"的功能，敬请期待！'
+    "**💡 声音描述示例（中英文均可）：**  \n\n"
+    "**示例 1 — 深宫太后**  \n"
+    '`Control Instruction`: *"中老年女性，声音低沉阴冷，语速缓慢而有力，'
+    '字字深思熟虑，带有深不可测的城府与威慑感。"*  \n'
+    '`Target Text`: *"哀家在这深宫待了四十年，什么风浪没见过？你以为瞒得过哀家？"*  \n\n'
+    "**示例 2 — 暴躁驾校教练**  \n"
+    '`Control Instruction`: *"暴躁的中年男声，语速快，充满无奈和愤怒"*  \n'
+    '`Target Text`: *"踩离合！踩刹车啊！你往哪儿开呢？前面是树你看不见吗？'
+    '我教了你八百遍了，打死方向盘！你是不是想把车给我开到沟里去？"*  \n\n'
+    "---\n"
+    "**🗣️ 方言生成指南：**  \n"
+    "要生成地道的方言语音，请在 **Target Text** 中直接使用方言词汇和句式，"
+    "并在 **Control Instruction** 中描述方言特征。  \n\n"
+    "**示例 — 广东话**  \n"
+    '`Control Instruction`: *"粤语，中年男性，语气平淡"*  \n'
+    '✅ 正确（粤语表达）：*"伙計，唔該一個A餐，凍奶茶少甜！"*  \n'
+    '❌ 错误（普通话原文）：*"伙计，麻烦来一个A餐，冻奶茶少甜！"*  \n\n'
+    "**示例 — 河南话**  \n"
+    '`Control Instruction`: *"河南话，接地气的大叔"*  \n'
+    '✅ 正确（河南话表达）：*"恁这是弄啥嘞？晌午吃啥饭？"*  \n'
+    '❌ 错误（普通话原文）：*"你这是在干什么呢？中午吃什么饭？"*  \n\n'
+    "🤖 **小技巧：** 不知道方言怎么写？可以用豆包、DeepSeek、Kimi 等 AI 助手"
+    "将普通话翻译为方言文本，再粘贴到 Target Text 中即可。  \n\n"
 )
 
 _I18N_TRANSLATIONS = {
     "en": {
-        "reference_audio_label": "Reference Audio (optional — for cloning)",
-        "show_prompt_text_label": "Enable Prompt Text (improves voice similarity)",
-        "show_prompt_text_info": "Uses the ASR transcript of reference audio for higher cloning fidelity. Control Instruction will be disabled.",
-        "prompt_text_label": "Prompt Text (auto-filled by ASR, editable)",
-        "prompt_text_placeholder": "The transcript of your reference audio will appear here...",
-        "control_label": "Control Instruction (optional, only support English and Chinese)",
-        "control_placeholder": "e.g. 年轻女性，温柔甜美 / sadly / an excited young man",
-        "target_text_label": "Target Text",
-        "generate_btn": "Generate Speech",
+        "reference_audio_label": "🎤 Reference Audio (optional — upload for cloning)",
+        "show_prompt_text_label": "🎙️ Ultimate Cloning Mode (transcript-guided cloning)",
+        "show_prompt_text_info": "Auto-transcribes reference audio for every vocal nuance reproduced. Control Instruction will be disabled when active.",
+        "prompt_text_label": "Transcript of Reference Audio (auto-filled via ASR, editable)",
+        "prompt_text_placeholder": "The transcript of your reference audio will appear here …",
+        "control_label": "🎛️ Control Instruction (optional — supports Chinese & English)",
+        "control_placeholder": "e.g. A warm young woman / 年轻女性，温柔甜美 / Excited and fast-paced",
+        "target_text_label": "✍️ Target Text — the content to speak",
+        "generate_btn": "🔊 Generate Speech",
         "generated_audio_label": "Generated Audio",
-        "advanced_settings_title": "Advanced Settings",
+        "advanced_settings_title": "⚙️ Advanced Settings",
         "ref_denoise_label": "Reference audio enhancement",
-        "ref_denoise_info": "Denoise reference audio with ZipEnhancer",
+        "ref_denoise_info": "Apply ZipEnhancer denoising to the reference audio before cloning",
         "normalize_label": "Text normalization",
-        "normalize_info": "Normalize input text with wetext",
+        "normalize_info": "Normalize numbers, dates, and abbreviations via wetext",
         "cfg_label": "CFG (guidance scale)",
-        "cfg_info": "Higher = stronger prompt adherence; lower = more variation",
+        "cfg_info": "Higher → closer to the prompt / reference; lower → more creative variation",
+        "dit_steps_label": "LocDiT flow-matching steps",
+        "dit_steps_info": "LocDiT flow-matching steps — more steps → maybe better audio quality, but slower",
         "usage_instructions": _USAGE_INSTRUCTIONS_EN,
         "examples_footer": _EXAMPLES_FOOTER_EN,
     },
     "zh-CN": {
-        "reference_audio_label": "参考音频（可选 - 用于克隆）",
-        "show_prompt_text_label": "启用 Prompt Text（提升音色还原度）",
-        "show_prompt_text_info": "使用参考音频的文本内容提升克隆相似度，开启后 Control Instruction 将被禁用",
-        "prompt_text_label": "Prompt Text（ASR 自动填充，可编辑）",
-        "prompt_text_placeholder": "参考音频的文本内容将自动识别到这里...",
-        "control_label": "Control Instruction（可选，仅支持中文和英文）",
-        "control_placeholder": "如：年轻女性，温柔甜美 / sadly / an excited young man",
-        "target_text_label": "Target Text（要合成的文本）",
-        "generate_btn": "开始生成",
-        "generated_audio_label": "生成音频",
-        "advanced_settings_title": "高级设置",
+        "reference_audio_label": "🎤 参考音频（可选 — 上传后用于克隆）",
+        "show_prompt_text_label": "🎙️ 极致克隆模式（基于文本引导的极致克隆）",
+        "show_prompt_text_info": "自动识别参考音频文本，完整还原音色、节奏、情感等全部声音细节。开启后 Control Instruction 将暂时禁用",
+        "prompt_text_label": "参考音频内容文本（ASR 自动填充，可手动编辑）",
+        "prompt_text_placeholder": "参考音频的文字内容将自动识别并显示在此处 …",
+        "control_label": "🎛️ Control Instruction（可选 — 支持中英文描述）",
+        "control_placeholder": "如：年轻女性，温柔甜美 / A warm young woman / 暴躁老哥，语速飞快",
+        "target_text_label": "✍️ Target Text — 要合成的目标文本",
+        "generate_btn": "🔊 开始生成",
+        "generated_audio_label": "生成结果",
+        "advanced_settings_title": "⚙️ 高级设置",
         "ref_denoise_label": "参考音频降噪增强",
-        "ref_denoise_info": "使用 ZipEnhancer 对参考音频进行降噪",
+        "ref_denoise_info": "克隆前使用 ZipEnhancer 对参考音频进行降噪处理",
         "normalize_label": "文本规范化",
-        "normalize_info": "使用 wetext 对输入文本进行规范化处理",
-        "cfg_label": "CFG Value（引导强度）",
-        "cfg_info": "数值越高，越贴合提示要求；数值越低，变化空间越大",
+        "normalize_info": "自动规范化数字、日期及缩写（基于 wetext）",
+        "cfg_label": "CFG（引导强度）",
+        "cfg_info": "数值越高 → 越贴合提示/参考音色；数值越低 → 生成风格更自由",
+        "dit_steps_label": "LocDiT 流匹配迭代步数",
+        "dit_steps_info": "LocDiT 流匹配生成迭代步数 — 步数越多 → 可能生成更好的音频质量，但速度变慢",
         "usage_instructions": _USAGE_INSTRUCTIONS_ZH,
         "examples_footer": _EXAMPLES_FOOTER_ZH,
     },
@@ -153,7 +156,7 @@ for _d in _I18N_TRANSLATIONS.values():
 I18N = gr.I18n(**_I18N_TRANSLATIONS)
 
 DEFAULT_TARGET_TEXT = (
-    "VoxCPM is an innovative end-to-end TTS model from ModelBest, "
+    "VoxCPM2 is a creative multilingual TTS model from ModelBest, "
     "designed to generate highly realistic speech."
 )
 
@@ -279,12 +282,13 @@ class VoxCPMDemo:
         cfg_value_input: float,
         do_normalize: bool,
         denoise: bool,
+        inference_timesteps: int = 10,
     ) -> dict:
         generate_kwargs = dict(
             text=final_text,
             reference_wav_path=audio_path,
             cfg_value=float(cfg_value_input),
-            inference_timesteps=10,
+            inference_timesteps=inference_timesteps,
             normalize=do_normalize,
             denoise=denoise,
         )
@@ -302,6 +306,7 @@ class VoxCPMDemo:
         cfg_value_input: float = 2.0,
         do_normalize: bool = True,
         denoise: bool = True,
+        inference_timesteps: int = 10,
     ) -> Tuple[int, np.ndarray]:
         current_model = self.get_or_load_voxcpm()
 
@@ -330,6 +335,7 @@ class VoxCPMDemo:
             cfg_value_input=cfg_value_input,
             do_normalize=do_normalize,
             denoise=denoise,
+            inference_timesteps=inference_timesteps,
         )
         wav = current_model.generate(**generate_kwargs)
         return (current_model.tts_model.sample_rate, wav)
@@ -349,6 +355,7 @@ def create_demo_interface(demo: VoxCPMDemo):
         cfg_value: float,
         do_normalize: bool,
         denoise: bool,
+        dit_steps: int,
     ):
         actual_prompt_text = prompt_text_value.strip() if use_prompt_text else ""
         actual_control = "" if use_prompt_text else control_instruction
@@ -360,6 +367,7 @@ def create_demo_interface(demo: VoxCPMDemo):
             cfg_value_input=cfg_value,
             do_normalize=do_normalize,
             denoise=denoise,
+            inference_timesteps=int(dit_steps),
         )
         return (sr, wav_np)
 
@@ -450,6 +458,14 @@ def create_demo_interface(demo: VoxCPMDemo):
                         label=I18N("cfg_label"),
                         info=I18N("cfg_info"),
                     )
+                    dit_steps = gr.Slider(
+                        minimum=1,
+                        maximum=50,
+                        value=10,
+                        step=1,
+                        label=I18N("dit_steps_label"),
+                        info=I18N("dit_steps_info"),
+                    )
 
                 run_btn = gr.Button(I18N("generate_btn"), variant="primary", size="lg")
 
@@ -478,6 +494,7 @@ def create_demo_interface(demo: VoxCPMDemo):
                 cfg_value,
                 DoNormalizeText,
                 DoDenoisePromptAudio,
+                dit_steps,
             ],
             outputs=[audio_output],
             show_progress=True,

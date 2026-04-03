@@ -476,7 +476,7 @@ class VoxCPM2Model(nn.Module):
         retry_badcase_max_times: int = 3,
         retry_badcase_ratio_threshold: float = 6.0,
         streaming: bool = False,
-        streaming_prefix_len: int = 3,
+        streaming_prefix_len: int = 4,
     ) -> Generator[torch.Tensor, None, None]:
         if retry_badcase and streaming:
             warnings.warn("Retry on bad cases is not supported in streaming mode, setting retry_badcase=False.")
@@ -775,7 +775,7 @@ class VoxCPM2Model(nn.Module):
         retry_badcase_max_times: int = 3,
         retry_badcase_ratio_threshold: float = 6.0,
         streaming: bool = False,
-        streaming_prefix_len: int = 3,
+        streaming_prefix_len: int = 4,
     ) -> Generator[Tuple[torch.Tensor, torch.Tensor, Union[torch.Tensor, List[torch.Tensor]]], None, None]:
         """
         Generate audio using pre-built prompt cache.
@@ -964,7 +964,7 @@ class VoxCPM2Model(nn.Module):
         inference_timesteps: int = 10,
         cfg_value: float = 2.0,
         streaming: bool = False,
-        streaming_prefix_len: int = 3,
+        streaming_prefix_len: int = 4,
     ) -> Generator[Tuple[torch.Tensor, Union[torch.Tensor, List[torch.Tensor]]], None, None]:
         """Core inference method for audio generation.
 
