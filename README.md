@@ -14,9 +14,12 @@
   <a href="https://trendshift.io/repositories/17704" target="_blank"><img src="https://trendshift.io/api/badge/repositories/17704" alt="OpenBMB%2FVoxCPM | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 </div>
 
+<br>
+
 <p align="center">
-  👋 <b>Join our community for discussion and support!</b><br><br>
-  <a href="./assets/feishu-group.png" style="display:inline-block;vertical-align:middle;">
+  👋 Join our community for discussion and support!
+  <br>
+  <a href="./assets/feishu-group.png" style="display:inline-block;vertical-align:middle; margin-left: 10px;">
     <img src="./assets/feishu-logo.png" width="16" height="16" style="vertical-align:middle;"> Feishu
   </a>
   &nbsp;|&nbsp;
