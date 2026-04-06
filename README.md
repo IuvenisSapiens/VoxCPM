@@ -80,7 +80,7 @@ Chinese Dialect: 四川话, 粤语, 吴语, 东北话, 河南话, 陕西话, 山
 ### Installation
 
 ```sh
-uv pip install voxcpm
+pip install voxcpm
 ```
 
 > **Requirements:** Python ≥ 3.10, PyTorch ≥ 2.5.0, CUDA ≥ 12.0. See [Quick Start Docs](https://voxcpm.readthedocs.io/en/latest/quickstart.html) for details.
@@ -266,7 +266,7 @@ VoxCPM2 is built on a **tokenizer-free, diffusion autoregressive** paradigm. The
 
 ## 📊 Performance
 
-VoxCPM2 achieves state-of-the-art or comparable results on public zero-shot TTS benchmarks. 
+VoxCPM2 achieves state-of-the-art or comparable results on public zero-shot and controllable TTS benchmarks. 
 
 ### Seed-TTS-eval
 
