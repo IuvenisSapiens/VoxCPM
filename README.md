@@ -15,7 +15,14 @@
 </div>
 
 <p align="center">
-  👋 Contact us on <a href="assets/feishu.png">Feishu</a>
+  👋 <b>Join our community for discussion and support!</b><br><br>
+  <a href="./assets/feishu-group.png" style="display:inline-block;vertical-align:middle;">
+    <img src="./assets/feishu-logo.png" width="16" height="16" style="vertical-align:middle;"> Feishu
+  </a>
+  &nbsp;|&nbsp;
+  <a href="https://discord.gg/KZUx7tVNwz" style="display:inline-block;vertical-align:middle;">
+    <img src="./assets/discord-logo.png" width="16" height="16" style="vertical-align:middle;"> Discord
+  </a>
 </p>
 
 VoxCPM is a **tokenizer-free** Text-to-Speech system that directly generates continuous speech representations via an end-to-end **diffusion autoregressive architecture**, bypassing discrete tokenization to achieve highly natural and expressive synthesis.
