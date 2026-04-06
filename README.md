@@ -6,6 +6,8 @@
   <a href="https://voxcpm.readthedocs.io/en/latest/"><img src="https://img.shields.io/badge/Docs-ReadTheDocs-8CA1AF" alt="Documentation"></a>
   <a href="https://huggingface.co/openbmb/VoxCPM2"><img src="https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-VoxCPM2-yellow" alt="Hugging Face"></a>
   <a href="https://modelscope.cn/models/OpenBMB/VoxCPM2"><img src="https://img.shields.io/badge/ModelScope-VoxCPM2-purple" alt="ModelScope"></a>
+  <a href="https://openbmb.github.io/voxcpm2-demopage/"><img src="https://img.shields.io/badge/DemoPage-Audio Samples-red"></a>
+  
 </p>
 
 <div align="center">
@@ -40,7 +42,7 @@ VoxCPM is a **tokenizer-free** Text-to-Speech system that directly generates con
 - 🎙️ **Ultimate Cloning** — Reproduce every vocal nuance: provide both reference audio and its transcript, and the model continues seamlessly from the reference, faithfully preserving every vocal detail — timbre, rhythm, emotion, and style (same as VoxCPM1.5)
 - 🔊 **48kHz High-Quality Audio** — Accepts 16kHz reference audio and directly outputs 48kHz studio-quality audio via AudioVAE V2's asymmetric encode/decode design, with built-in super-resolution — no external upsampler needed
 - 🧠 **Context-Aware Synthesis** — Automatically infers appropriate prosody and expressiveness from text content
-- ⚡ **Real-Time Streaming** — RTF as low as ~0.13 on NVIDIA RTX 4090 by [Nano-VLLM](https://github.com/huggingface/nano-vllm)
+- ⚡ **Real-Time Streaming** — RTF as low as ~0.3 on NVIDIA RTX 4090, and ~0.13  accelerated by [Nano-VLLM](https://github.com/a710128/nanovllm-voxcpm)
 - 📜 **Fully Open-Source & Commercial-Ready** — Weights and code released under the [Apache-2.0](LICENSE) license, free for commercial use
 
 <details>
@@ -53,10 +55,10 @@ Chinese Dialect: 四川话, 粤语, 吴语, 东北话, 河南话, 陕西话, 山
 
 ### News
 
-* **[2026.04]** 🔥 We release **VoxCPM2** — 2B, 30 languages, Voice Design & Controllable Voice Cloning, 48kHz audio output! [Weights](https://huggingface.co/openbmb/VoxCPM2) | [Docs](https://voxcpm.readthedocs.io/en/latest/)
+* **[2026.04]** 🔥 We release **VoxCPM2** — 2B, 30 languages, Voice Design & Controllable Voice Cloning, 48kHz audio output! [Weights](https://huggingface.co/openbmb/VoxCPM2) | [Docs](https://voxcpm.readthedocs.io/en/latest/) | [Playground](https://huggingface.co/spaces/OpenBMB/VoxCPM-Demo)
 * **[2025.12]** 🎉 Open-source **VoxCPM1.5** [weights](https://huggingface.co/openbmb/VoxCPM1.5) with SFT & LoRA fine-tuning. (**🏆 #1 GitHub Trending**)
 * **[2025.09]** 🔥 Release VoxCPM [Technical Report](https://arxiv.org/abs/2509.24650).
-* **[2025.09]** 🎉 Open-source **VoxCPM-0.5B** [weights](https://huggingface.co/openbmb/VoxCPM-0.5B) & [Playground](https://huggingface.co/spaces/OpenBMB/VoxCPM-Demo). (**🏆 #1 HuggingFace Trending**)
+* **[2025.09]** 🎉 Open-source **VoxCPM-0.5B** [weights](https://huggingface.co/openbmb/VoxCPM-0.5B) (**🏆 #1 HuggingFace Trending**)
 
 ---
 
@@ -181,7 +183,7 @@ voxcpm design \
   --text "VoxCPM2 brings studio-quality multilingual speech synthesis." \
   --output out.wav
 
-# Voice design with style control
+# Controllable voice cloning with style control
 voxcpm design \
   --text "VoxCPM2 brings studio-quality multilingual speech synthesis." \
   --control "Young female voice, warm and gentle, slightly smiling" \
@@ -233,7 +235,7 @@ server.stop()
 
 > **RTF as low as ~0.13 on NVIDIA RTX 4090** (vs ~0.3 with the standard PyTorch implementation), with support for batched concurrent requests and a FastAPI HTTP server. See the [Nano-vLLM-VoxCPM repo](https://github.com/a710128/nanovllm-voxcpm) for deployment details.
 
-> **Full parameter reference, multi-scenario examples, and voice cloning tips →** [Quick Start Guide](https://voxcpm.readthedocs.io/en/latest/quickstart.html) | [Usage Guide & Best Practices](https://voxcpm.readthedocs.io/en/latest/cookbook.html)
+> **Full parameter reference, multi-scenario examples, and voice cloning tips →** [Quick Start Guide](https://voxcpm.readthedocs.io/en/latest/quickstart.html) | [Usage Guide](https://voxcpm.readthedocs.io/en/latest/usage_guide.html) | [Cookbook](https://voxcpm.readthedocs.io/en/latest/cookbook.html)
 
 ---
 
@@ -246,15 +248,15 @@ server.stop()
 | **Audio Sample Rate** | 48kHz | 44.1kHz | 16kHz |
 | **LM Token Rate** | 6.25Hz | 6.25Hz | 12.5Hz |
 | **Languages** | 30 | 2 (zh, en) | 2 (zh, en) |
+| **Cloning Mode** | Isolated Reference & Continuation | Continuation only | Continuation only |
 | **Voice Design** | ✅ | — | — |
-| **Style Control** | ✅ | — | — |
-| **Reference Cloning** | Isolated Reference & Continuation | Continuation only | Continuation only |
+| **Controllable Voice Cloning** | ✅ | — | — |
 | **SFT / LoRA** | ✅ | ✅ | ✅ |
 | **RTF (RTX 4090)** | ~0.30 | ~0.15 | ~0.17 |
 | **RTF in Nano-VLLM (RTX 4090)** | ~0.13 | ~0.08 | ~0.10 |
 | **VRAM** | ~8 GB | ~6 GB | ~5 GB |
 | **Weights** | [🤗 HF](https://huggingface.co/openbmb/VoxCPM2) / [MS](https://modelscope.cn/models/OpenBMB/VoxCPM2) | [🤗 HF](https://huggingface.co/openbmb/VoxCPM1.5) / [MS](https://modelscope.cn/models/OpenBMB/VoxCPM1.5) | [🤗 HF](https://huggingface.co/openbmb/VoxCPM-0.5B) / [MS](https://modelscope.cn/models/OpenBMB/VoxCPM-0.5B) |
-| **Technical Report** | Coming soon | — | [arXiv](https://arxiv.org/abs/2509.24650) |
+| **Technical Report** | Coming soon | — | [arXiv](https://arxiv.org/abs/2509.24650) [ICLR 2026](https://openreview.net/forum?id=h5KLpGoqzC) |
 | **Demo Page** | [Audio Samples](https://openbmb.github.io/voxcpm2-demopage) | — | [Audio Samples](https://openbmb.github.io/VoxCPM-demopage) |
 
 VoxCPM2 is built on a **tokenizer-free, diffusion autoregressive** paradigm. The model operates entirely in the latent space of **AudioVAE V2**, following a four-stage pipeline: **LocEnc → TSLM → RALM → LocDiT**, enabling rich expressiveness and 48kHz native audio output.
@@ -263,7 +265,7 @@ VoxCPM2 is built on a **tokenizer-free, diffusion autoregressive** paradigm. The
   <img src="assets/voxcpm_model.png" alt="VoxCPM2 Model Architecture" width="90%">
 </div>
 
-> For full architectural details, VoxCPM2-specific upgrades, and a model comparison table, see the [Architecture & Design Docs](https://voxcpm.readthedocs.io/en/latest/models/version_history.html).
+> For full architectural details, VoxCPM2-specific upgrades, and a model comparison table, see the [Architecture Design](https://voxcpm.readthedocs.io/en/latest/models/architecture.html).
 
 ---
 
@@ -470,7 +472,7 @@ Full documentation: **[voxcpm.readthedocs.io](https://voxcpm.readthedocs.io/en/l
 ## ⚠️ Risks and Limitations
 
 - **Potential for Misuse:** VoxCPM's voice cloning can generate highly realistic synthetic speech. It is **strictly forbidden** to use VoxCPM for impersonation, fraud, or disinformation. We strongly recommend clearly marking any AI-generated content.
-- **Controllable Generation Stability:** Voice Design and Style Control results can vary between runs — you may try to generate 1~3 times to obtain the desired voice or style. We are actively working on improving controllability consistency.
+- **Controllable Generation Stability:** Voice Design and Controllable Voice Cloning results can vary between runs — you may try to generate 1~3 times to obtain the desired voice or style. We are actively working on improving controllability consistency.
 - **Language Coverage:** VoxCPM2 officially supports 30 languages. For languages not on the list, you are welcome to test directly or try fine-tuning on your own data. We plan to expand language coverage in future releases.
 - **Usage:** This model is released under the Apache-2.0 license. For production deployments, we recommend conducting thorough testing and safety evaluation tailored to your use case.
 
