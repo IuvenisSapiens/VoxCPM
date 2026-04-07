@@ -46,6 +46,7 @@ def train(
     train_manifest: str,
     val_manifest: str = "",
     sample_rate: int = 16_000,
+    out_sample_rate: int = 0,  # accepted from YAML for documentation; not used in training
     batch_size: int = 1,
     grad_accum_steps: int = 1,
     num_workers: int = 2,
@@ -68,6 +69,7 @@ def train(
     distribute: bool = False,  # If True, save hf_model_id as base_model; otherwise save pretrained_path
 ):
     _ = config_path
+    _ = out_sample_rate
 
     # Validate distribution options
     if lora is not None and distribute and not hf_model_id:
@@ -97,6 +99,12 @@ def train(
         pretrained_path, optimize=False, training=True, lora_config=LoRAConfig(**lora) if lora else None
     )
     tokenizer = base_model.text_tokenizer
+
+    expected_sr = base_model.audio_vae.sample_rate
+    assert sample_rate == expected_sr, (
+        f"sample_rate mismatch: config says {sample_rate}, but the AudioVAE encoder expects {expected_sr}. "
+        f"Please set sample_rate: {expected_sr} in your training config. "
+    )
 
     train_ds, val_ds = load_audio_text_datasets(
         train_manifest=train_manifest,

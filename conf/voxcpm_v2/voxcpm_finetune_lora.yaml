@@ -1,7 +1,8 @@
 pretrained_path: /path/to/VoxCPM2/
 train_manifest: /path/to/train.jsonl
 val_manifest: null
-sample_rate: 48000
+sample_rate: 16000        # AudioVAE encoder input rate; must match audio_vae_config.sample_rate
+out_sample_rate: 48000    # AudioVAE decoder output rate; only used at inference, not during training
 batch_size: 2
 grad_accum_steps: 8  # effective batch size = batch_size × grad_accum_steps = 16
 num_workers: 8
