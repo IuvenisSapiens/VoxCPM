@@ -7,12 +7,13 @@ import gradio as gr
 from typing import Optional, Tuple
 from funasr import AutoModel
 from pathlib import Path
+from modelscope import snapshot_download
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 if os.environ.get("HF_REPO_ID", "").strip() == "":
     os.environ["HF_REPO_ID"] = "openbmb/VoxCPM2"
 
-import voxcpm
+from src import voxcpm
 
 logging.basicConfig(
     level=logging.INFO,
@@ -226,8 +227,10 @@ class VoxCPMDemo:
         logger.info(f"Running on device: {self.device}")
 
         self.asr_model_id = "iic/SenseVoiceSmall"
+        asr_target_dir = os.path.join("models", self.asr_model_id.split("/")[-1])
+        snapshot_download(repo_id=self.asr_model_id, local_dir=asr_target_dir)
         self.asr_model: Optional[AutoModel] = AutoModel(
-            model=self.asr_model_id,
+            model=asr_target_dir,
             disable_update=True,
             log_level="DEBUG",
             device="cuda:0" if self.device == "cuda" else "cpu",
@@ -244,15 +247,14 @@ class VoxCPMDemo:
             return env_model_dir
         repo_id = os.environ.get("HF_REPO_ID", "").strip()
         if len(repo_id) > 0:
-            target_dir = os.path.join("models", repo_id.replace("/", "__"))
+            target_dir = os.path.join("models", repo_id.split("/")[-1])
             if not os.path.isdir(target_dir):
                 try:
-                    from huggingface_hub import snapshot_download
                     os.makedirs(target_dir, exist_ok=True)
-                    logger.info(f"Downloading model from HF repo '{repo_id}' to '{target_dir}' ...")
-                    snapshot_download(repo_id=repo_id, local_dir=target_dir, local_dir_use_symlinks=False)
+                    logger.info(f"Downloading model from ModelScope repo '{repo_id}' to '{target_dir}' ...")
+                    snapshot_download(repo_id=repo_id, local_dir=target_dir)
                 except Exception as e:
-                    logger.warning(f"HF download failed: {e}. Falling back to 'models'.")
+                    logger.warning(f"Model download failed: {e}. Falling back to 'models'.")
                     return "models"
             return target_dir
         return "models"
@@ -321,9 +323,9 @@ class VoxCPMDemo:
         prompt_text_clean = (prompt_text or "").strip() or None
 
         if audio_path and prompt_text_clean:
-            logger.info(f"[Voice Cloning] prompt_wav + prompt_text + reference_wav")
+            logger.info("[Voice Cloning] prompt_wav + prompt_text + reference_wav")
         elif audio_path:
-            logger.info(f"[Voice Control] reference_wav only")
+            logger.info("[Voice Control] reference_wav only")
         else:
             logger.info(f"[Voice Design] control: {control[:50] if control else 'None'}...")
 
@@ -518,6 +520,7 @@ def run_demo(
         i18n=I18N,
         theme=_APP_THEME,
         css=_CUSTOM_CSS,
+        inbrowser=True
     )
 
 
