@@ -91,7 +91,7 @@ VoxCPM 是一个**无离散音频分词器**（Tokenizer-Free）的语音合成�
 pip install voxcpm
 ```
 
-> **环境要求：** Python ≥ 3.10，PyTorch ≥ 2.5.0，CUDA ≥ 12.0。详见 [快速开始文档](https://voxcpm.readthedocs.io/zh-cn/latest/quickstart.html)。
+> **环境要求：** Python ≥ 3.10 (<3.13)，PyTorch ≥ 2.5.0，CUDA ≥ 12.0。详见 [快速开始文档](https://voxcpm.readthedocs.io/zh-cn/latest/quickstart.html)。
 
 ### Python API
 
