@@ -415,10 +415,54 @@ VoxCPM2 achieves state-of-the-art or comparable results on public zero-shot and 
 
 </details>
 
+
+### Internal 30-Language ASR Benchmark
+
+We additionally run an internal multilingual intelligibility benchmark with **30 languages × 500 samples**. ASR transcription is evaluated via **Gemini 3.1 Flash Lite API**.
+
+<details>
+<summary><b>Internal 30-Language ASR Benchmark (click to expand)</b></summary>
+
+| Language | Metric | VoxCPM2 | Fish S2-Pro |
+|---|---:|---:|---:|
+| ar (Arabic) | CER | 1.23% | 0.30% |
+| da (Danish) | WER | 2.70% | 3.52% |
+| de (German) | WER | 0.96% | 0.64% |
+| el (Greek) | WER | 3.17% | 4.61% |
+| en (English) | WER | 0.42% | 1.03% |
+| es (Spanish) | WER | 1.33% | 0.64% |
+| fi (Finnish) | WER | 2.24% | 2.80% |
+| fr (French) | WER | 2.16% | 2.34% |
+| he (Hebrew) | CER | 2.98% | 15.27% |
+| hi (Hindi) | CER | 0.79% | 0.91% |
+| id (Indonesian) | WER | 1.36% | 1.68% |
+| it (Italian) | WER | 1.65% | 1.08% |
+| ja (Japanese) | CER | 2.40% | 1.82% |
+| km (Khmer) | CER | 2.05% | 75.15% |
+| ko (Korean) | CER | 0.95% | 0.29% |
+| lo (Lao) | CER | 1.90% | 87.40% |
+| ms (Malay) | WER | 1.75% | 1.41% |
+| my (Burmese) | CER | 1.42% | 85.27% |
+| nl (Dutch) | WER | 1.25% | 1.68% |
+| no (Norwegian) | WER | 2.49% | 3.76% |
+| pl (Polish) | WER | 1.90% | 1.65% |
+| pt (Portuguese) | WER | 1.48% | 1.49% |
+| ru (Russian) | WER | 0.90% | 0.86% |
+| sv (Swedish) | WER | 2.22% | 2.63% |
+| sw (Swahili) | CER | 1.07% | 2.02% |
+| th (Thai) | CER | 0.94% | 1.92% |
+| tl (Tagalog) | WER | 2.63% | 4.00% |
+| tr (Turkish) | WER | 1.65% | 1.65% |
+| vi (Vietnamese) | WER | 1.56% | 5.56% |
+| zh (Chinese) | CER | 0.92% | 1.02% |
+| Average (30 languages) |  | **1.68%** | - |
+
+</details>
+
 ### InstructTTSEval
 
 <details>
-<summary><b>Instruction-Guided Voice Design Results</b></summary>
+<summary><b>Instruction-Guided Voice Design Results (click to expand)</b></summary>
 
 | Model | InstructTTSEval-ZH | | | InstructTTSEval-EN | | |
 |-------|:---:|:----:|:----:|:----:|:----:|:----:|
