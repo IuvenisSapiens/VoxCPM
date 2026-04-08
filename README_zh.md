@@ -122,12 +122,12 @@ pip install modelscope
 ```
 
 ```python
-from modelscope.hub.snapshot_download import snapshot_download
+from modelscope import snapshot_download
+snapshot_download("OpenBMB/VoxCPM2", local_dir='./pretrained_models/VoxCPM2') # 指定模型保存的本地路径
+
 from voxcpm import VoxCPM
 import soundfile as sf
-
-local_model_dir = snapshot_download("OpenBMB/VoxCPM2")
-model = VoxCPM.from_pretrained(local_model_dir, load_denoiser=False)
+model = VoxCPM.from_pretrained('./pretrained_models/VoxCPM2', load_denoiser=False)
 
 wav = model.generate(
     text="VoxCPM2 是目前推荐使用的多语言语音合成版本。",

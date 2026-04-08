@@ -123,12 +123,12 @@ pip install modelscope
 ```
 
 ```python
-from modelscope.hub.snapshot_download import snapshot_download
+from modelscope import snapshot_download
+snapshot_download("OpenBMB/VoxCPM2", local_dir='./pretrained_models/VoxCPM2') # specify the local directory to save the model
+
 from voxcpm import VoxCPM
 import soundfile as sf
-
-local_model_dir = snapshot_download("OpenBMB/VoxCPM2")
-model = VoxCPM.from_pretrained(local_model_dir, load_denoiser=False)
+model = VoxCPM.from_pretrained("./pretrained_models/VoxCPM2", load_denoiser=False)
 
 wav = model.generate(
     text="VoxCPM2 is the current recommended release for realistic multilingual speech synthesis.",
