@@ -238,8 +238,8 @@ voxcpm --help
 
 ### Web Demo
 
-```bash                        
-python app.py --model-dir /path/to/VoxCPM2 --port 8808  # use a local model directory, open http://localhost:8808
+```bash
+python app.py --port 8808  # then open in browser: http://localhost:8808
 ```
 
 ### 🚢 Production Deployment (Nano-vLLM)
