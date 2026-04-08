@@ -102,7 +102,7 @@ from voxcpm import VoxCPM
 import soundfile as sf
 
 model = VoxCPM.from_pretrained(
-  "openbmb/VoxCPM2"
+  "openbmb/VoxCPM2",
   load_denoiser=False,
 )
 
@@ -113,6 +113,28 @@ wav = model.generate(
 )
 sf.write("demo.wav", wav, model.tts_model.sample_rate)
 print("已保存: demo.wav")
+```
+
+如果你希望先从 ModelScope 下载模型到本地（适用于国内网络访问），可以使用：
+
+```bash
+pip install modelscope
+```
+
+```python
+from modelscope.hub.snapshot_download import snapshot_download
+from voxcpm import VoxCPM
+import soundfile as sf
+
+local_model_dir = snapshot_download("OpenBMB/VoxCPM2")
+model = VoxCPM.from_pretrained(local_model_dir, load_denoiser=False)
+
+wav = model.generate(
+    text="VoxCPM2 是目前推荐使用的多语言语音合成版本。",
+    cfg_value=2.0,
+    inference_timesteps=10,
+)
+sf.write("demo.wav", wav, model.tts_model.sample_rate)
 ```
 
 #### 🎨 音色设计
