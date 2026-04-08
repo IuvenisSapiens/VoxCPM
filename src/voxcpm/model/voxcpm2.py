@@ -246,6 +246,7 @@ class VoxCPM2Model(nn.Module):
         # Audio VAE
         self.audio_vae = audio_vae
         self.chunk_size = audio_vae.chunk_size
+        self._decode_chunk_size = getattr(audio_vae, "decode_chunk_size", audio_vae.chunk_size)
         self._encode_sample_rate = audio_vae.sample_rate
         self.sample_rate = getattr(audio_vae, "out_sample_rate", audio_vae.sample_rate)
 
@@ -402,19 +403,26 @@ class VoxCPM2Model(nn.Module):
     def _dtype(self):
         return get_dtype(self.config.dtype)
 
-    def _encode_wav(self, wav_path: str, padding_mode: str = "right") -> torch.Tensor:
+    def _encode_wav(
+        self,
+        wav_path: str,
+        padding_mode: str = "right",
+        trim_silence_vad: bool = False,
+    ) -> torch.Tensor:
         """Load, trim, pad and VAE-encode an audio file.
 
         Args:
             wav_path: path to the audio file.
             padding_mode: "right" (default) or "left" padding for alignment.
+            trim_silence_vad: whether to apply VAD-based silence trimming.
 
         Returns:
             audio_feat: (T, P, D) tensor of latent patches.
         """
         audio, _ = librosa.load(wav_path, sr=self._encode_sample_rate, mono=True)
         audio = torch.from_numpy(audio).unsqueeze(0)
-        audio = _trim_audio_silence_vad(audio, self._encode_sample_rate, max_silence_ms=200.0)
+        if trim_silence_vad:
+            audio = _trim_audio_silence_vad(audio, self._encode_sample_rate, max_silence_ms=200.0)
         patch_len = self.patch_size * self.chunk_size
         if audio.size(1) % patch_len != 0:
             padding_size = patch_len - audio.size(1) % patch_len
@@ -475,6 +483,7 @@ class VoxCPM2Model(nn.Module):
         retry_badcase: bool = False,
         retry_badcase_max_times: int = 3,
         retry_badcase_ratio_threshold: float = 6.0,
+        trim_silence_vad: bool = False,
         streaming: bool = False,
         streaming_prefix_len: int = 4,
     ) -> Generator[torch.Tensor, None, None]:
@@ -495,8 +504,12 @@ class VoxCPM2Model(nn.Module):
             )
             text_length = text_token.shape[0]
 
-            ref_feat = self._encode_wav(reference_wav_path, padding_mode="right")
-            prompt_feat = self._encode_wav(prompt_wav_path, padding_mode="left")
+            ref_feat = self._encode_wav(
+                reference_wav_path,
+                padding_mode="right",
+                trim_silence_vad=trim_silence_vad,
+            )
+            prompt_feat = self._encode_wav(prompt_wav_path, padding_mode="left", trim_silence_vad=trim_silence_vad)
             prompt_audio_length = prompt_feat.size(0)
 
             ref_tokens, ref_feats, ref_t_mask, ref_a_mask = self._make_ref_prefix(ref_feat, text_token.device)
@@ -538,7 +551,11 @@ class VoxCPM2Model(nn.Module):
             )
             text_length = text_token.shape[0]
 
-            ref_feat = self._encode_wav(reference_wav_path, padding_mode="right")
+            ref_feat = self._encode_wav(
+                reference_wav_path,
+                padding_mode="right",
+                trim_silence_vad=trim_silence_vad,
+            )
             ref_tokens, ref_feats, ref_t_mask, ref_a_mask = self._make_ref_prefix(ref_feat, text_token.device)
 
             text_pad_feat = torch.zeros(
@@ -595,7 +612,7 @@ class VoxCPM2Model(nn.Module):
             )
             text_length = text_token.shape[0]
 
-            prompt_feat = self._encode_wav(prompt_wav_path, padding_mode="left")
+            prompt_feat = self._encode_wav(prompt_wav_path, padding_mode="left", trim_silence_vad=trim_silence_vad)
             prompt_audio_length = prompt_feat.size(0)
             prompt_pad_token = torch.zeros(prompt_audio_length, dtype=torch.int32, device=text_token.device)
             text_pad_feat = torch.zeros(
@@ -640,10 +657,10 @@ class VoxCPM2Model(nn.Module):
                 streaming_prefix_len=streaming_prefix_len,
             )
             if streaming:
-                patch_len = self.patch_size * self.chunk_size
+                decode_patch_len = self.patch_size * self._decode_chunk_size
                 for latent_pred, _ in inference_result:
                     decode_audio = self.audio_vae.decode(latent_pred.to(torch.float32))
-                    decode_audio = decode_audio[..., -patch_len:].squeeze(1).cpu()
+                    decode_audio = decode_audio[..., -decode_patch_len:].squeeze(1).cpu()
                     yield decode_audio
                 break
             else:
@@ -663,10 +680,10 @@ class VoxCPM2Model(nn.Module):
 
         if not streaming:
             decode_audio = self.audio_vae.decode(latent_pred.to(torch.float32))
-            patch_len = self.patch_size * self.chunk_size
+            decode_patch_len = self.patch_size * self._decode_chunk_size
             has_continuation = bool(prompt_wav_path)
             if has_continuation:
-                decode_audio = decode_audio[..., patch_len * (streaming_prefix_len - 1):].squeeze(1).cpu()
+                decode_audio = decode_audio[..., decode_patch_len * (streaming_prefix_len - 1):].squeeze(1).cpu()
             else:
                 decode_audio = decode_audio.squeeze(1).cpu()
             yield decode_audio
@@ -677,6 +694,7 @@ class VoxCPM2Model(nn.Module):
         prompt_text: str = None,
         prompt_wav_path: str = None,
         reference_wav_path: str = None,
+        trim_silence_vad: bool = False,
     ):
         """
         Build prompt cache for subsequent generation.
@@ -693,6 +711,8 @@ class VoxCPM2Model(nn.Module):
                 Must be paired with ``prompt_text``.
             reference_wav_path: reference audio path for voice cloning
                 (structurally isolated via ref_audio tokens).
+            trim_silence_vad: whether to apply VAD-based silence trimming
+                before encoding prompt/reference audio.
 
         Returns:
             prompt_cache: dict used by ``_generate_with_prompt_cache``.
@@ -705,11 +725,19 @@ class VoxCPM2Model(nn.Module):
         cache = {}
 
         if reference_wav_path:
-            cache["ref_audio_feat"] = self._encode_wav(reference_wav_path, padding_mode="right")
+            cache["ref_audio_feat"] = self._encode_wav(
+                reference_wav_path,
+                padding_mode="right",
+                trim_silence_vad=trim_silence_vad,
+            )
 
         if prompt_wav_path and prompt_text is not None:
             cache["prompt_text"] = prompt_text
-            cache["audio_feat"] = self._encode_wav(prompt_wav_path, padding_mode="left")
+            cache["audio_feat"] = self._encode_wav(
+                prompt_wav_path,
+                padding_mode="left",
+                trim_silence_vad=trim_silence_vad,
+            )
 
         has_ref = "ref_audio_feat" in cache
         has_prompt = "audio_feat" in cache
@@ -917,10 +945,10 @@ class VoxCPM2Model(nn.Module):
                 streaming_prefix_len=streaming_prefix_len,
             )
             if streaming:
-                patch_len = self.patch_size * self.chunk_size
+                decode_patch_len = self.patch_size * self._decode_chunk_size
                 for latent_pred, pred_audio_feat in inference_result:
                     decode_audio = self.audio_vae.decode(latent_pred.to(torch.float32))
-                    decode_audio = decode_audio[..., -patch_len:].squeeze(1).cpu()
+                    decode_audio = decode_audio[..., -decode_patch_len:].squeeze(1).cpu()
                     yield (decode_audio, target_text_token, pred_audio_feat)
                 break
             else:
@@ -939,9 +967,9 @@ class VoxCPM2Model(nn.Module):
                     break
         if not streaming:
             decode_audio = self.audio_vae.decode(latent_pred.to(torch.float32))
-            patch_len = self.patch_size * self.chunk_size
+            decode_patch_len = self.patch_size * self._decode_chunk_size
             if mode in ("continuation", "ref_continuation"):
-                decode_audio = decode_audio[..., patch_len * (streaming_prefix_len - 1) :].squeeze(1).cpu()
+                decode_audio = decode_audio[..., decode_patch_len * (streaming_prefix_len - 1) :].squeeze(1).cpu()
             else:
                 decode_audio = decode_audio[..., :].squeeze(1).cpu()
             yield (decode_audio, target_text_token, pred_audio_feat)

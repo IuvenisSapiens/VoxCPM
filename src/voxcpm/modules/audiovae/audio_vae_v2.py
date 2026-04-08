@@ -436,6 +436,7 @@ class AudioVAE(nn.Module):
         self.out_sample_rate = out_sample_rate
         self.sr_bin_boundaries = sr_bin_boundaries
         self.chunk_size = math.prod(encoder_rates)
+        self.decode_chunk_size = math.prod(decoder_rates)
 
     def preprocess(self, audio_data, sample_rate):
         if sample_rate is None:
