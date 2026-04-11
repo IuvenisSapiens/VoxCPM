@@ -3,3 +3,4 @@ __pycache__
 voxcpm.egg-info
 .DS_Store
 ./pretrained_models/
+app_local.py
