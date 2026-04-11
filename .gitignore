@@ -4,4 +4,5 @@ voxcpm.egg-info
 .DS_Store
 models/
 ./pretrained_models/
+app_local.py
 funasr/

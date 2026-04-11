@@ -209,6 +209,7 @@ def load_model(args) -> VoxCPM:
                 zipenhancer_model_path=zipenhancer_path,
                 enable_denoiser=not args.no_denoiser,
                 optimize=not args.no_optimize,
+                device=args.device,
                 lora_config=lora_config,
                 lora_weights_path=lora_weights_path,
             )
@@ -227,6 +228,7 @@ def load_model(args) -> VoxCPM:
             cache_dir=args.cache_dir,
             local_files_only=args.local_files_only,
             optimize=not args.no_optimize,
+            device=args.device,
             lora_config=lora_config,
             lora_weights_path=lora_weights_path,
         )
@@ -402,6 +404,12 @@ def _add_model_args(parser):
         type=str,
         default=DEFAULT_HF_MODEL_ID,
         help=f"Hugging Face repo id (default: {DEFAULT_HF_MODEL_ID})",
+    )
+    parser.add_argument(
+        "--device",
+        type=str,
+        default="auto",
+        help="Runtime device: auto, cpu, mps, cuda, or cuda:N (default: auto)",
     )
     parser.add_argument(
         "--cache-dir", type=str, help="Cache directory for Hub downloads"
