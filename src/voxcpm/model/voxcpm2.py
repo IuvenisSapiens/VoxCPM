@@ -1103,7 +1103,8 @@ class VoxCPM2Model(nn.Module):
         device: str | None = None,
         lora_config: LoRAConfig = None,
     ):
-        config = VoxCPMConfig.model_validate_json(open(os.path.join(path, "config.json")).read())
+        with open(os.path.join(path, "config.json"), "r", encoding="utf-8") as _cfg_f:
+            config = VoxCPMConfig.model_validate_json(_cfg_f.read())
         tokenizer = LlamaTokenizerFast.from_pretrained(path)
         audio_vae_config = getattr(config, "audio_vae_config", None)
         audio_vae = AudioVAEV2(config=audio_vae_config) if audio_vae_config else AudioVAEV2()
