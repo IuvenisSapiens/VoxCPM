@@ -45,7 +45,7 @@ from ..modules.layers.lora import apply_lora_to_named_linear_modules
 from ..modules.locdit import CfmConfig, UnifiedCFM, VoxCPMLocDiTV2
 from ..modules.locenc import VoxCPMLocEnc
 from ..modules.minicpm4 import MiniCPM4Config, MiniCPMModel
-from .utils import get_dtype, mask_multichar_chinese_tokens, resolve_runtime_device
+from .utils import get_dtype, mask_multichar_chinese_tokens, next_and_close, resolve_runtime_device
 
 
 # A simple function to trim audio silence using VAD, not used default
@@ -441,7 +441,7 @@ class VoxCPM2Model(nn.Module):
         return tokens, feats, t_mask, a_mask
 
     def generate(self, *args, **kwargs) -> torch.Tensor:
-        return next(self._generate(*args, streaming=False, **kwargs))
+        return next_and_close(self._generate(*args, streaming=False, **kwargs))
 
     def generate_streaming(self, *args, **kwargs) -> Generator[torch.Tensor, None, None]:
         return self._generate(*args, streaming=True, **kwargs)
@@ -641,7 +641,7 @@ class VoxCPM2Model(nn.Module):
                     yield decode_audio
                 break
             else:
-                latent_pred, pred_audio_feat, context_len = next(inference_result)
+                latent_pred, pred_audio_feat, context_len = next_and_close(inference_result)
                 if retry_badcase:
                     if pred_audio_feat.shape[0] >= target_text_length * retry_badcase_ratio_threshold:
                         print(
@@ -759,7 +759,7 @@ class VoxCPM2Model(nn.Module):
         return merged
 
     def generate_with_prompt_cache(self, *args, **kwargs) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        return next(self._generate_with_prompt_cache(*args, streaming=False, **kwargs))
+        return next_and_close(self._generate_with_prompt_cache(*args, streaming=False, **kwargs))
 
     def generate_with_prompt_cache_streaming(
         self, *args, **kwargs
@@ -928,7 +928,7 @@ class VoxCPM2Model(nn.Module):
                     yield (decode_audio, target_text_token, pred_audio_feat)
                 break
             else:
-                latent_pred, pred_audio_feat, context_len = next(inference_result)
+                latent_pred, pred_audio_feat, context_len = next_and_close(inference_result)
                 if retry_badcase:
                     if pred_audio_feat.shape[0] >= target_text_length * retry_badcase_ratio_threshold:
                         print(
@@ -951,7 +951,7 @@ class VoxCPM2Model(nn.Module):
             yield (decode_audio, target_text_token, pred_audio_feat)
 
     def inference(self, *args, **kwargs) -> Tuple[torch.Tensor, torch.Tensor]:
-        feat_pred, generated_feat, _ = next(self._inference(*args, streaming=False, **kwargs))
+        feat_pred, generated_feat, _ = next_and_close(self._inference(*args, streaming=False, **kwargs))
         return feat_pred, generated_feat
 
     def inference_streaming(self, *args, **kwargs) -> Generator[Tuple[torch.Tensor, List[torch.Tensor]], None, None]:
