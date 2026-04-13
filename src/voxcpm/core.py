@@ -8,6 +8,7 @@ from typing import Generator, Optional
 from huggingface_hub import snapshot_download
 from .model.voxcpm import VoxCPMModel, LoRAConfig
 from .model.voxcpm2 import VoxCPM2Model
+from .model.utils import next_and_close
 
 
 class VoxCPM:
@@ -171,7 +172,7 @@ class VoxCPM:
         )
 
     def generate(self, *args, **kwargs) -> np.ndarray:
-        return next(self._generate(*args, streaming=False, **kwargs))
+        return next_and_close(self._generate(*args, streaming=False, **kwargs))
 
     def generate_streaming(self, *args, **kwargs) -> Generator[np.ndarray, None, None]:
         return self._generate(*args, streaming=True, **kwargs)
@@ -292,7 +293,14 @@ class VoxCPM:
                 streaming=streaming,
             )
 
-            for wav, _, _ in generate_result:
+            if streaming:
+                try:
+                    for wav, _, _ in generate_result:
+                        yield wav.squeeze(0).cpu().numpy()
+                finally:
+                    generate_result.close()
+            else:
+                wav, _, _ = next_and_close(generate_result)
                 yield wav.squeeze(0).cpu().numpy()
 
         finally:
