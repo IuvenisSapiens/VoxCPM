@@ -537,7 +537,7 @@ class StreamingVAEDecoder:
                     self._patch_causal_conv(mod, pad)
             elif isinstance(mod, CausalTransposeConv1d):
                 trim = mod._CausalTransposeConv1d__padding * 2 - mod._CausalTransposeConv1d__output_padding
-                ctx = mod.kernel_size[0] // mod.stride[0] - 1
+                ctx = (mod.kernel_size[0] - 1) // mod.stride[0]
                 if ctx > 0:
                     self._patch_transpose_conv(mod, ctx, trim)
 
