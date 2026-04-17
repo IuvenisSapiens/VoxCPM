@@ -957,7 +957,7 @@ class VoxCPMModel(nn.Module):
         if safetensors_file and safetensors_file.exists() and SAFETENSORS_AVAILABLE:
             state_dict = load_file(str(safetensors_file), device=device)
         elif ckpt_file and ckpt_file.exists():
-            ckpt = torch.load(ckpt_file, map_location=device, weights_only=False)
+            ckpt = torch.load(ckpt_file, map_location=device, weights_only=True)
             state_dict = ckpt.get("state_dict", ckpt)
         else:
             raise FileNotFoundError(f"LoRA checkpoint not found. Expected either {safetensors_file} or {ckpt_file}")
