@@ -3,10 +3,10 @@ from typing import List, Optional
 import torch
 from transformers import PreTrainedTokenizer
 
-_LOW_PRECISION_DTYPES = {"bfloat16", "bf16", "float16", "fp16", "half"}
+_LOW_PRECISION_DTYPES = {"bfloat16", "bf16", "float16", "fp16"}
 _VALID_DTYPE_OVERRIDES = {
     "bfloat16", "bf16",
-    "float16", "fp16", "half",
+    "float16", "fp16",
     "float32", "fp32",
 }
 
