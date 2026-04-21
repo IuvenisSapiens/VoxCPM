@@ -31,7 +31,10 @@ class ValidationResult:
 
 
 def _check_audio_file(audio_path: str, sample_rate: int) -> Optional[str]:
-    """Check if an audio file exists and is readable. Returns error message or None."""
+    """Check if an audio file exists, is readable, and matches expected sample rate.
+
+    Returns an error message, or None if the file is valid.
+    """
     if not os.path.isfile(audio_path):
         return f"Audio file not found: {audio_path}"
     try:
@@ -40,6 +43,11 @@ def _check_audio_file(audio_path: str, sample_rate: int) -> Optional[str]:
         info = sf.info(audio_path)
         if info.frames == 0:
             return f"Audio file is empty: {audio_path}"
+        if info.samplerate != sample_rate:
+            return (
+                f"Sample rate mismatch in {audio_path}: "
+                f"expected {sample_rate} Hz, got {info.samplerate} Hz"
+            )
         return None
     except ImportError:
         # soundfile not available; just check existence
@@ -173,6 +181,7 @@ def validate_manifest(
                 missing_audio_count += 1
                 if missing_audio_count <= 5:
                     result.errors.append(f"Line {i + 1}: {audio_error}")
+                has_error = True
             else:
                 duration = _get_audio_duration(audio_path)
                 if duration is not None:
@@ -187,6 +196,7 @@ def validate_manifest(
                         )
         else:
             result.errors.append(f"Line {i + 1}: Invalid audio path")
+            has_error = True
 
         # Validate optional ref_audio
         if "ref_audio" in entry:
@@ -198,7 +208,7 @@ def validate_manifest(
                     ref_path = str(manifest_dir / ref_path)
                 if os.path.isfile(ref_path):
                     result.has_ref_audio += 1
-                elif result.has_ref_audio == 0:
+                else:
                     result.warnings.append(
                         f"Line {i + 1}: ref_audio file not found: {ref_path}"
                     )

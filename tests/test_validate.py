@@ -183,3 +183,68 @@ class TestValidateManifest:
 
         r3 = ValidationResult(total_samples=0, valid_samples=0)
         assert not r3.is_valid
+
+    def test_invalid_audio_not_counted_as_valid(self, tmp_dir):
+        """A row with a bad audio path must not increment valid_samples."""
+        manifest = tmp_dir / "bad_audio.jsonl"
+        _write_manifest(
+            manifest,
+            [{"text": "hello", "audio": "/nonexistent/audio.wav"}],
+        )
+        result = validate_manifest(str(manifest))
+        assert result.total_samples == 1
+        assert result.valid_samples == 0
+        assert not result.is_valid
+        assert any("not found" in e for e in result.errors)
+
+    def test_sample_rate_mismatch(self, tmp_dir):
+        """A file with a different sample rate should be reported as an error."""
+        try:
+            import soundfile as sf
+            import numpy as np
+        except ImportError:
+            pytest.skip("soundfile not available")
+
+        audio = tmp_dir / "audio_8k.wav"
+        import numpy as np
+        samples = np.zeros(8000, dtype=np.float32)
+        sf.write(str(audio), samples, 8000)
+
+        manifest = tmp_dir / "sr_mismatch.jsonl"
+        _write_manifest(manifest, [{"text": "hello", "audio": str(audio)}])
+
+        result = validate_manifest(str(manifest), sample_rate=16000)
+        assert result.valid_samples == 0
+        assert not result.is_valid
+        assert any("Sample rate mismatch" in e or "sample rate" in e.lower() for e in result.errors)
+
+    def test_mixed_ref_audio_warns_for_each_missing(self, tmp_dir):
+        """Missing ref_audio entries should each generate a warning independently."""
+        audio = tmp_dir / "audio.wav"
+        ref_good = tmp_dir / "ref_good.wav"
+        _create_wav(audio)
+        _create_wav(ref_good)
+
+        manifest = tmp_dir / "mixed_ref.jsonl"
+        _write_manifest(
+            manifest,
+            [
+                {"text": "row1", "audio": str(audio), "ref_audio": str(ref_good)},
+                {"text": "row2", "audio": str(audio), "ref_audio": "/nonexistent/ref.wav"},
+            ],
+        )
+        result = validate_manifest(str(manifest))
+        assert result.has_ref_audio == 1
+        assert any("ref_audio file not found" in w for w in result.warnings)
+
+    def test_cli_validate_exit_code(self, tmp_dir):
+        """validate subcommand must exit non-zero on error."""
+        import subprocess
+        manifest = tmp_dir / "bad.jsonl"
+        _write_manifest(manifest, [{"text": "hi", "audio": "/nonexistent/x.wav"}])
+
+        proc = subprocess.run(
+            [sys.executable, "-m", "voxcpm.cli", "validate", str(manifest)],
+            capture_output=True,
+        )
+        assert proc.returncode != 0
