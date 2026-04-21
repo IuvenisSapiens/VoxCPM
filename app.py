@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import logging
 import numpy as np
@@ -293,6 +294,9 @@ class VoxCPMDemo:
             raise ValueError("Please input text to synthesize.")
 
         control = (control_instruction or "").strip()
+        # Strip any parentheses (half-width/full-width) from control text to avoid
+        # breaking the "(control)text" prompt format expected by the model.
+        control = re.sub(r"[()（）]", "", control).strip()
         final_text = f"({control}){text}" if control else text
 
         audio_path = reference_wav_path_input if reference_wav_path_input else None
