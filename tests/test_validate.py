@@ -238,13 +238,15 @@ class TestValidateManifest:
         assert any("ref_audio file not found" in w for w in result.warnings)
 
     def test_cli_validate_exit_code(self, tmp_dir):
-        """validate subcommand must exit non-zero on error."""
+        """validate subcommand must exit 1 on validation error (missing audio)."""
         import subprocess
         manifest = tmp_dir / "bad.jsonl"
         _write_manifest(manifest, [{"text": "hi", "audio": "/nonexistent/x.wav"}])
 
         proc = subprocess.run(
-            [sys.executable, "-m", "voxcpm.cli", "validate", str(manifest)],
+            [sys.executable, "-m", "voxcpm.cli", "validate", "--manifest", str(manifest)],
             capture_output=True,
+            text=True,
         )
-        assert proc.returncode != 0
+        assert proc.returncode == 1, f"Expected exit 1, got {proc.returncode}"
+        assert "FAILED" in proc.stderr or "Audio file not found" in proc.stderr
