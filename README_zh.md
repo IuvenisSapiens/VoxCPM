@@ -241,6 +241,14 @@ voxcpm --help
 python app.py --port 8808  # 然后在浏览器打开 http://localhost:8808
 ```
 
+使用 `--device` 选择运行设备：
+
+```bash
+python app.py --device auto
+```
+
+支持的取值包括 `auto`、`cpu`、`mps`、`cuda` 和 `cuda:N`。在 Apple Silicon Mac 上，`auto` 会在可用时使用 MPS。
+
 ### 🚢 生产部署（Nano-vLLM）
 
 如需高吞吐量部署，使用 [**Nano-vLLM-VoxCPM**](https://github.com/a710128/nanovllm-voxcpm) — 基于 Nano-vLLM 构建的专用推理引擎，支持并发请求和异步 API。

@@ -242,6 +242,14 @@ voxcpm --help
 python app.py --port 8808  # then open in browser: http://localhost:8808
 ```
 
+Use `--device` to choose the runtime device:
+
+```bash
+python app.py --device auto
+```
+
+Supported values are `auto`, `cpu`, `mps`, `cuda`, and `cuda:N`. On Apple Silicon Macs, `auto` uses MPS when available.
+
 ### 🚢 Production Deployment (Nano-vLLM)
 
 For high-throughput serving, use [**Nano-vLLM-VoxCPM**](https://github.com/a710128/nanovllm-voxcpm) — a dedicated inference engine built on Nano-vLLM with concurrent request support and an async API.

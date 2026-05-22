@@ -2,7 +2,8 @@
 import re
 import regex
 import inflect
-from wetext import Normalizer
+from tn.chinese.normalizer import Normalizer as ZhNormalizer
+from tn.english.normalizer import Normalizer as EnNormalizer
 
 chinese_char_pattern = re.compile(r"[\u4e00-\u9fff]+")
 
@@ -163,8 +164,8 @@ def clean_text(text):
 class TextNormalizer:
     def __init__(self, tokenizer=None):
         self.tokenizer = tokenizer
-        self.zh_tn_model = Normalizer(lang="zh", operator="tn", remove_erhua=True)
-        self.en_tn_model = Normalizer(lang="en", operator="tn")
+        self.zh_tn_model = ZhNormalizer(remove_erhua=True, overwrite_cache=True)
+        self.en_tn_model = EnNormalizer(overwrite_cache=True)
         self.inflect_parser = inflect.engine()
 
     def normalize(self, text, split=False):
