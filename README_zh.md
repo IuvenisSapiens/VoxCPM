@@ -10,7 +10,7 @@
   <a href="https://voxcpm.readthedocs.io/zh-cn/latest/"><img src="https://img.shields.io/badge/Docs-ReadTheDocs-8CA1AF" alt="Documentation"></a>
   <a href="https://huggingface.co/openbmb/VoxCPM2"><img src="https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-VoxCPM2-yellow" alt="Hugging Face"></a>
   <a href="https://modelscope.cn/models/OpenBMB/VoxCPM2"><img src="https://img.shields.io/badge/ModelScope-VoxCPM2-purple" alt="ModelScope"></a>
-  <a href="https://openbmb.github.io/voxcpm2-demopage/"><img src="https://img.shields.io/badge/DemoPage-Audio Samples-red"></a>
+  <a href="https://openbmb.github.io/voxcpm2-demopage/"><img src="https://img.shields.io/badge/DemoPage-Audio Samples-red" alt="DemoPage"></a>
   
 </p>
 
@@ -73,6 +73,7 @@ VoxCPM 是一个**无离散音频分词器**（Tokenizer-Free）的语音合成�
   - [命令行使用](#命令行使用)
   - [Web Demo](#web-demo)
   - [生产部署](#-生产部署nano-vllm)
+  - [端侧推理（llama.cpp-omni）](#-端侧推理llamacpp-omni)
 - [模型与版本](#-模型与版本)
 - [性能评测](#-性能评测)
 - [微调](#%EF%B8%8F-微调)
@@ -110,6 +111,7 @@ wav = model.generate(
     text="VoxCPM2 是目前推荐使用的多语言语音合成版本。",
     cfg_value=2.0,
     inference_timesteps=10,
+    seed=42,
 )
 sf.write("demo.wav", wav, model.tts_model.sample_rate)
 print("已保存: demo.wav")
@@ -133,6 +135,7 @@ wav = model.generate(
     text="VoxCPM2 是目前推荐使用的多语言语音合成版本。",
     cfg_value=2.0,
     inference_timesteps=10,
+    seed=42,
 )
 sf.write("demo.wav", wav, model.tts_model.sample_rate)
 ```
@@ -146,6 +149,7 @@ wav = model.generate(
     text="(年轻女性，声音温柔甜美)你好，欢迎使用VoxCPM2！",
     cfg_value=2.0,
     inference_timesteps=10,
+    seed=42,
 )
 sf.write("voice_design.wav", wav, model.tts_model.sample_rate)
 ```
@@ -166,6 +170,7 @@ wav = model.generate(
     reference_wav_path="path/to/voice.wav",
     cfg_value=2.0,
     inference_timesteps=10,
+    seed=42,
 )
 sf.write("controllable_clone.wav", wav, model.tts_model.sample_rate)
 ```
@@ -212,6 +217,7 @@ voxcpm design \
 voxcpm design \
   --text "VoxCPM2带来全新语音合成体验。" \
   --control "年轻女声，温暖温柔，略带微笑" \
+  --seed 42 \
   --output out.wav
 
 # 声音克隆（参考音频）
@@ -230,6 +236,23 @@ voxcpm clone \
 
 # 批量处理
 voxcpm batch --input examples/input.txt --output-dir outs
+
+# 可选的生成后时间戳对齐（基于 stable-ts）
+pip install "voxcpm[timestamps]"
+voxcpm design \
+  --text "VoxCPM2带来全新语音合成体验。" \
+  --output out.wav \
+  --timestamps \
+  --timestamp-level word \
+  --timestamp-language zh
+
+# 字级时间戳是 best-effort，会基于词级对齐结果拆分
+voxcpm design \
+  --text "欢迎使用 VoxCPM2。" \
+  --output out.wav \
+  --timestamps \
+  --timestamp-level char \
+  --timestamp-language zh
 
 # 帮助
 voxcpm --help
@@ -294,6 +317,43 @@ curl http://localhost:8000/v1/audio/speech \
 ```
 
 > 基于上游 vLLM 调度器构建，开箱即用支持批量并发、流式分块输出和多 GPU 部署。完整示例见 [VoxCPM2 部署样例](https://github.com/vllm-project/vllm-omni/tree/main/examples/online_serving/voxcpm2)。
+
+### 📱 端侧推理（llama.cpp-omni）
+
+如需在端侧/消费级硬件上无 Python 运行，使用 **[llama.cpp-omni](https://github.com/tc-mb/llama.cpp-omni)** — 基于 llama.cpp 的高性能 C++ 推理引擎，原生支持 VoxCPM2 GGUF，可在 **CPU / Metal / CUDA / Vulkan** 上运行。
+
+**1. 下载 GGUF 权重**：从 [HF下载](https://huggingface.co/DennisHuang648/VoxCPM2-GGUF) | [ModelScope](https://modelscope.cn/models/DennisHuang/VoxCPM2-GGUF)，需要一个 **BaseLM**（F16 或 Q8_0）+ **Acoustic** 文件。Q8_0 体积减半，质量损失可忽略。
+
+**2. 编译**
+
+```bash
+git clone https://github.com/tc-mb/llama.cpp-omni.git && cd llama.cpp-omni
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --target voxcpm2-cli -j
+```
+
+> CMake 会自动检测并启用 Metal（macOS）或 CUDA（Linux + NVIDIA GPU）。
+
+**3. 运行**
+
+```bash
+# 基础 TTS
+./build/bin/voxcpm2-cli \
+    -t "你好，我是通过 llama.cpp-omni 运行的 VoxCPM2。" \
+    -o output.wav VoxCPM2-BaseLM-Q8_0.gguf VoxCPM2-Acoustic-F16.gguf
+
+# 声音克隆（参考音频）
+./build/bin/voxcpm2-cli \
+    -t "克隆的声音。" -r speaker.wav -o clone.wav \
+    VoxCPM2-BaseLM-Q8_0.gguf VoxCPM2-Acoustic-F16.gguf
+
+# 精准克隆（参考音频 + 转写文本）
+./build/bin/voxcpm2-cli \
+    -t "目标文本。" --prompt-wav speaker.wav --prompt-text "参考音频的转写文本" \
+    -o clone.wav VoxCPM2-BaseLM-Q8_0.gguf VoxCPM2-Acoustic-F16.gguf
+```
+
+> **在 Apple M4 Pro / Metal 上 RTF ~1.76（Q8_0）。** 主要参数：`--cfg`（引导尺度）、`--timesteps`（CFM 步数）、`--seed`、`--temperature`、`--stream`。详见 [llama.cpp-omni 仓库](https://github.com/tc-mb/llama.cpp-omni) 和 [GGUF 权重页面](https://huggingface.co/DennisHuang648/VoxCPM2-GGUF)。
 
 > **完整参数说明、多场景示例与声音克隆技巧 →** [快速开始指南](https://voxcpm.readthedocs.io/zh-cn/latest/quickstart.html) | [使用指南](https://voxcpm.readthedocs.io/zh-cn/latest/usage_guide.html) | [Cookbook](https://voxcpm.readthedocs.io/zh-cn/latest/cookbook.html)
 
@@ -556,7 +616,9 @@ python lora_ft_webui.py   # 然后打开 http://localhost:7860
 |---|---|
 | [**Nano-vLLM**](https://github.com/a710128/nanovllm-voxcpm) | 高吞吐快速 GPU 推理引擎 |
 | [**vLLM-Omni**](https://github.com/vllm-project/vllm-omni) | 官方 vLLM 全模态服务（原生支持 VoxCPM2）— PagedAttention、OpenAI 兼容 API |
+| [**llama.cpp-omni**](https://github.com/tc-mb/llama.cpp-omni) | 全双工全模态推理引擎 — VoxCPM2 GGUF，支持 CPU / Metal / CUDA / Vulkan |
 | [**VoxCPM.cpp**](https://github.com/bluryar/VoxCPM.cpp) | GGML/GGUF：CPU、CUDA、Vulkan 推理 |
+| [**audio.cpp**](https://github.com/0xShug0/audio.cpp) | 基于 ggml 的统一 C++ 推理框架 — CPU/CUDA/Vulkan/Metal，CLI 与服务端，无需 Python |
 | [**VoxCPM-ONNX**](https://github.com/bluryar/VoxCPM-ONNX) | ONNX 导出，支持 CPU 推理 |
 | [**VoxCPMANE**](https://github.com/0seba/VoxCPMANE) | Apple Neural Engine 后端 |
 | [**voxcpm_rs**](https://github.com/madushan1000/voxcpm_rs) | Rust 重新实现 |

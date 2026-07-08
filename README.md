@@ -71,6 +71,7 @@ Chinese Dialect: 四川话, 粤语, 吴语, 东北话, 河南话, 陕西话, 山
   - [CLI Usage](#cli-usage)
   - [Web Demo](#web-demo)
   - [Production Deployment](#-production-deployment-nano-vllm)
+  - [On-Device Inference (llama.cpp-omni)](#-on-device-inference-llamacpp-omni)
 - [Models & Versions](#-models--versions)
 - [Performance](#-performance)
 - [Fine-tuning](#%EF%B8%8F-fine-tuning)
@@ -108,6 +109,7 @@ wav = model.generate(
     text="VoxCPM2 is the current recommended release for realistic multilingual speech synthesis.",
     cfg_value=2.0,
     inference_timesteps=10,
+    seed=42,
 )
 sf.write("demo.wav", wav, model.tts_model.sample_rate)
 print("saved: demo.wav")
@@ -131,6 +133,7 @@ wav = model.generate(
     text="VoxCPM2 is the current recommended release for realistic multilingual speech synthesis.",
     cfg_value=2.0,
     inference_timesteps=10,
+    seed=42,
 )
 sf.write("demo.wav", wav, model.tts_model.sample_rate)
 ```
@@ -144,6 +147,7 @@ wav = model.generate(
     text="(A young woman, gentle and sweet voice)Hello, welcome to VoxCPM2!",
     cfg_value=2.0,
     inference_timesteps=10,
+    seed=42,
 )
 sf.write("voice_design.wav", wav, model.tts_model.sample_rate)
 ```
@@ -164,6 +168,7 @@ wav = model.generate(
     reference_wav_path="path/to/voice.wav",
     cfg_value=2.0,
     inference_timesteps=10,
+    seed=42,
 )
 sf.write("controllable_clone.wav", wav, model.tts_model.sample_rate)
 ```
@@ -210,6 +215,7 @@ voxcpm design \
 voxcpm design \
   --text "VoxCPM2 brings studio-quality multilingual speech synthesis." \
   --control "Young female voice, warm and gentle, slightly smiling" \
+  --seed 42 \
   --output out.wav
 
 # Voice cloning (reference audio)
@@ -228,6 +234,23 @@ voxcpm clone \
 
 # Batch processing
 voxcpm batch --input examples/input.txt --output-dir outs
+
+# Optional post-generation timestamps with stable-ts
+pip install "voxcpm[timestamps]"
+voxcpm design \
+  --text "VoxCPM2 brings studio-quality multilingual speech synthesis." \
+  --output out.wav \
+  --timestamps \
+  --timestamp-level word \
+  --timestamp-language en
+
+# Character timestamps are best-effort and are derived from word alignment
+voxcpm design \
+  --text "欢迎使用 VoxCPM2。" \
+  --output out.wav \
+  --timestamps \
+  --timestamp-level char \
+  --timestamp-language zh
 
 # Help
 voxcpm --help
@@ -292,6 +315,43 @@ curl http://localhost:8000/v1/audio/speech \
 ```
 
 > Built on the upstream vLLM scheduler, with batched concurrent requests, streaming chunk delivery, and multi-GPU deployment out of the box. See the [VoxCPM2 example](https://github.com/vllm-project/vllm-omni/tree/main/examples/online_serving/voxcpm2) for full deployment recipes.
+
+### 📱 On-Device Inference (llama.cpp-omni)
+
+For on-device / edge deployment without Python, use **[llama.cpp-omni](https://github.com/tc-mb/llama.cpp-omni)** — a high-performance C++ inference engine built on llama.cpp, with native VoxCPM2 GGUF support on **CPU / Metal / CUDA / Vulkan**.
+
+**1. Download GGUF weights** from [HuggingFace](https://huggingface.co/DennisHuang648/VoxCPM2-GGUF) | [ModelScope](https://modelscope.cn/models/DennisHuang/VoxCPM2-GGUF) — you need one **BaseLM** (F16 or Q8_0) + the **Acoustic** file. Q8_0 halves the download with negligible quality loss.
+
+**2. Build**
+
+```bash
+git clone https://github.com/tc-mb/llama.cpp-omni.git && cd llama.cpp-omni
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --target voxcpm2-cli -j
+```
+
+> CMake auto-detects Metal (macOS) or CUDA (Linux with NVIDIA GPU).
+
+**3. Run**
+
+```bash
+# Basic TTS
+./build/bin/voxcpm2-cli \
+    -t "Hello, this is VoxCPM2 running through llama.cpp-omni." \
+    -o output.wav VoxCPM2-BaseLM-Q8_0.gguf VoxCPM2-Acoustic-F16.gguf
+
+# Voice cloning (reference audio)
+./build/bin/voxcpm2-cli \
+    -t "Cloned voice." -r speaker.wav -o clone.wav \
+    VoxCPM2-BaseLM-Q8_0.gguf VoxCPM2-Acoustic-F16.gguf
+
+# Ultimate cloning (reference audio + transcript)
+./build/bin/voxcpm2-cli \
+    -t "Target text." --prompt-wav speaker.wav --prompt-text "transcript of speaker.wav" \
+    -o clone.wav VoxCPM2-BaseLM-Q8_0.gguf VoxCPM2-Acoustic-F16.gguf
+```
+
+> **RTF ~1.76 (Q8_0) on Apple M4 Pro / Metal.** Key flags: `--cfg` (guidance scale), `--timesteps` (CFM steps), `--seed`, `--temperature`, `--stream`. See the [llama.cpp-omni repo](https://github.com/tc-mb/llama.cpp-omni) and [GGUF weights page](https://huggingface.co/DennisHuang648/VoxCPM2-GGUF) for full details.
 
 > **Full parameter reference, multi-scenario examples, and voice cloning tips →** [Quick Start Guide](https://voxcpm.readthedocs.io/en/latest/quickstart.html) | [Usage Guide](https://voxcpm.readthedocs.io/en/latest/usage_guide.html) | [Cookbook](https://voxcpm.readthedocs.io/en/latest/cookbook.html)
 
@@ -566,7 +626,9 @@ Full documentation: **[voxcpm.readthedocs.io](https://voxcpm.readthedocs.io/en/l
 | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | **[Nano-vLLM](https://github.com/a710128/nanovllm-voxcpm)**                 | High-throughput and Fast GPU serving                                                             |
 | **[vLLM-Omni](https://github.com/vllm-project/vllm-omni)**                  | Official vLLM omni-modal serving for VoxCPM2 — PagedAttention, OpenAI-compatible API             |
+| **[llama.cpp-omni](https://github.com/tc-mb/llama.cpp-omni)**               | Full-duplex omni inference engine — VoxCPM2 GGUF on CPU / Metal / CUDA / Vulkan                   |
 | **[VoxCPM.cpp](https://github.com/bluryar/VoxCPM.cpp)**                     | GGML/GGUF: CPU, CUDA, Vulkan inference                                                           |
+| **[audio.cpp](https://github.com/0xShug0/audio.cpp)**                       | ggml-based unified C++ inference framework — CPU/CUDA/Vulkan/Metal, CLI & server, no Python      |
 | **[VoxCPM-ONNX](https://github.com/bluryar/VoxCPM-ONNX)**                   | ONNX export for CPU inference                                                                    |
 | **[VoxCPMANE](https://github.com/0seba/VoxCPMANE)**                         | Apple Neural Engine backend                                                                      |
 | **[voxcpm_rs](https://github.com/madushan1000/voxcpm_rs)**                  | Rust re-implementation                                                                           |
